@@ -1,0 +1,14 @@
+@media (max-width: 768px) {
+    .sm-table thead {
+      display: none;
+    }
+    .sm-table tr {
+      display: block;
+      margin-bottom: 1rem;
+    }
+    .sm-table td {
+      display: block;
+      width: 100%;
+    }
+  }
+  

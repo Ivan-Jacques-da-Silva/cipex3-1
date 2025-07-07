@@ -1,0 +1,7 @@
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/ivanjacques/testes.cursoviolaocristao.com.br"
+PassengerBaseURI "/"
+PassengerNodejs "/home/ivanjacques/nodevenv/testes.cursoviolaocristao.com.br/20/bin/node"
+PassengerAppType node
+PassengerStartupFile index.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END

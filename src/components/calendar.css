@@ -1,0 +1,16 @@
+/* Ajustes para telas menores que 768px */
+@media (max-width: 768px) {
+    .fc-header-toolbar {
+        flex-direction: column; /* Coloca os botões em uma coluna */
+        align-items: center; /* Centraliza os botões */
+    }
+    .fc-toolbar-title {
+        font-size: 1rem; /* Reduz o tamanho do título */
+        margin: 0.5rem 0; /* Adiciona margem ao título */
+    }
+    .fc-button {
+        padding: 0.2rem 0.4rem; /* Reduz o padding dos botões */
+        font-size: 0.8rem; /* Reduz o tamanho da fonte dos botões */
+        margin: 0.2rem; /* Adiciona margem entre os botões */
+    }
+}
