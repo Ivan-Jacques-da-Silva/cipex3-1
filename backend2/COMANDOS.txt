@@ -1,0 +1,199 @@
+
+# 🚀 COMANDOS COMPLETOS PARA CONFIGURAÇÃO BACKEND2
+
+## 📦 1. INSTALAÇÃO INICIAL
+
+# Navegar para pasta backend2
+cd backend2
+
+# Instalar todas as dependências
+npm install express prisma @prisma/client pg dotenv cors multer bcryptjs jsonwebtoken nodemon
+
+## 🗄️ 2. CONFIGURAÇÃO DO BANCO
+
+# Gerar cliente Prisma
+npx prisma generate
+
+# Aplicar schema ao banco PostgreSQL
+npx prisma db push
+
+# Verificar configuração do banco
+node scripts/setup-database.js
+
+## 🔄 3. MIGRAÇÃO DE DADOS
+
+# Colocar arquivo cipex.sql na pasta backend/
+# cp /caminho/para/cipex.sql ../backend/
+
+# Executar migração dos dados
+node scripts/migrate-sql.js
+
+## 🔍 4. VERIFICAÇÃO
+
+# Abrir interface visual do banco
+npx prisma studio
+
+# Testar conexão com banco
+node -e "const {prisma} = require('./lib/database'); prisma.usuario.count().then(count => console.log('Usuários:', count)).finally(() => prisma.$disconnect())"
+
+## 🖥️ 5. EXECUTAR SERVIDOR
+
+# Modo desenvolvimento (recarrega automaticamente)
+npm run dev
+
+# Modo produção
+npm start
+
+## 🧪 6. TESTAR API
+
+# Testar se servidor está rodando
+curl http://localhost:5000/usuarios
+
+# Testar login (substitua email/senha por dados reais)
+curl -X POST http://localhost:5000/login \
+  -H "Content-Type: application/json" \
+  -d '{"cp_email_usuario":"admin@exemplo.com","cp_senha_usuario":"senha123"}'
+
+# Testar criação de usuário
+curl -X POST http://localhost:5000/usuarios \
+  -H "Content-Type: application/json" \
+  -d '{"cp_nome_usuario":"Teste","cp_email_usuario":"teste@teste.com","cp_senha_usuario":"123456","cp_tipo_usuario":"aluno"}'
+
+## 🔧 7. COMANDOS DE MANUTENÇÃO
+
+# Resetar banco (CUIDADO: apaga todos os dados)
+npx prisma db push --force-reset
+
+# Visualizar logs do Prisma
+npx prisma db push --preview-feature
+
+# Verificar status do banco
+npx prisma db push --dry-run
+
+# Gerar nova migração
+npx prisma migrate dev --name adicionar_nova_tabela
+
+## 📊 8. COMANDOS DE MONITORAMENTO
+
+# Ver processos rodando na porta 5000
+lsof -i :5000
+
+# Matar processo na porta 5000
+pkill -f "node.*5000"
+
+# Ver logs em tempo real
+tail -f logs/app.log
+
+# Verificar uso de memória
+ps aux | grep node
+
+## 🗃️ 9. COMANDOS DO BANCO DE DADOS
+
+# Conectar ao PostgreSQL via psql (se disponível)
+psql $DATABASE_URL
+
+# Comandos SQL úteis:
+# SELECT COUNT(*) FROM usuarios;
+# SELECT * FROM usuarios LIMIT 5;
+# SELECT COUNT(*) FROM matriculas;
+
+## 🔄 10. SCRIPTS NPM DISPONÍVEIS
+
+npm start              # Iniciar servidor produção
+npm run dev            # Iniciar servidor desenvolvimento
+npm run db:generate    # Gerar cliente Prisma
+npm run db:push        # Aplicar schema
+npm run db:migrate     # Criar migração
+npm run db:studio      # Interface visual
+npm run db:setup       # Configurar banco
+npm run db:migrate-sql # Migrar dados SQL
+
+## 🚨 11. SOLUÇÃO DE PROBLEMAS
+
+# Erro "Prisma Client is not generated"
+npx prisma generate
+
+# Erro "Can't connect to database"
+echo $DATABASE_URL
+node scripts/setup-database.js
+
+# Erro "Port already in use"
+pkill -f "node.*5000"
+npm run dev
+
+# Erro na migração SQL
+# 1. Verificar se cipex.sql está em backend/
+# 2. Verificar formato do arquivo SQL
+# 3. Executar: npm run db:push --force-reset
+# 4. Executar: npm run db:migrate-sql
+
+# Reinstalar dependências
+rm -rf node_modules package-lock.json
+npm install
+
+## 📋 12. CHECKLIST DE VERIFICAÇÃO
+
+□ PostgreSQL configurado no Replit
+□ Arquivo .env com DATABASE_URL
+□ Dependências instaladas (npm install)
+□ Cliente Prisma gerado (npx prisma generate)
+□ Schema aplicado (npx prisma db push)
+□ Arquivo cipex.sql na pasta backend/
+□ Migração executada (npm run db:migrate-sql)
+□ Servidor iniciado (npm run dev)
+□ API testada (curl localhost:5000/usuarios)
+
+## 🎯 13. COMANDOS PARA PRODUÇÃO
+
+# Build para produção
+npm install --production
+
+# Iniciar com PM2 (se disponível)
+pm2 start index.js --name backend2
+
+# Verificar logs produção
+pm2 logs backend2
+
+# Reiniciar aplicação
+pm2 restart backend2
+
+## 📝 14. COMANDOS DE BACKUP
+
+# Backup do banco PostgreSQL
+pg_dump $DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restaurar backup
+psql $DATABASE_URL < backup_20240108_143000.sql
+
+# Exportar dados específicos
+npx prisma db export --output-dir ./exports
+
+## 🔍 15. COMANDOS DE DEBUG
+
+# Verificar versões
+node --version
+npm --version
+npx prisma --version
+
+# Verificar configuração Prisma
+npx prisma validate
+
+# Ver informações detalhadas do banco
+npx prisma db push --preview-feature
+
+# Logs detalhados do servidor
+DEBUG=* npm run dev
+
+## ⚡ 16. COMANDOS RÁPIDOS
+
+# Setup completo em uma linha
+cd backend2 && npm install && npx prisma generate && npx prisma db push && npm run db:migrate-sql && npm run dev
+
+# Verificação rápida
+curl -s http://localhost:5000/usuarios | head -50
+
+# Reset completo
+npx prisma db push --force-reset && npm run db:migrate-sql
+
+# Parar tudo
+pkill -f "node.*5000"

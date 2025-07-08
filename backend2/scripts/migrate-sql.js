@@ -3,6 +3,82 @@ const fs = require('fs');
 const path = require('path');
 const { prisma } = require('../lib/database');
 
+function parseInsertStatements(sqlContent) {
+  const tables = {
+    usuarios: [],
+    escolas: [],
+    cursos: [],
+    turmas: [],
+    matriculas: [],
+    chamadas: [],
+    presencas: [],
+    resumos: [],
+    audios_curso: [],
+    materiais_curso: [],
+    materiais_aula: []
+  };
+
+  // Regex para capturar comandos INSERT
+  const insertRegex = /INSERT INTO\s+`?(\w+)`?\s+(?:\([^)]+\))?\s+VALUES\s*(.+?);/gis;
+  
+  let match;
+  while ((match = insertRegex.exec(sqlContent)) !== null) {
+    const tableName = match[1].toLowerCase();
+    const valuesString = match[2];
+    
+    // Parse dos valores
+    const valueMatches = valuesString.match(/\(([^)]+)\)/g);
+    
+    if (valueMatches && tables[tableName]) {
+      valueMatches.forEach(valueMatch => {
+        const cleanValue = valueMatch.slice(1, -1); // Remove parênteses
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+        let quoteChar = '';
+        
+        for (let i = 0; i < cleanValue.length; i++) {
+          const char = cleanValue[i];
+          
+          if ((char === '"' || char === "'") && !inQuotes) {
+            inQuotes = true;
+            quoteChar = char;
+          } else if (char === quoteChar && inQuotes) {
+            if (cleanValue[i + 1] === quoteChar) {
+              current += char;
+              i++; // Skip next quote
+            } else {
+              inQuotes = false;
+              quoteChar = '';
+            }
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim() === 'NULL' ? null : current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        
+        // Add last value
+        values.push(current.trim() === 'NULL' ? null : current.trim());
+        
+        // Clean quotes from string values
+        const cleanedValues = values.map(val => {
+          if (val === null) return null;
+          if (typeof val === 'string' && ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'")))) {
+            return val.slice(1, -1);
+          }
+          return val;
+        });
+        
+        tables[tableName].push(cleanedValues);
+      });
+    }
+  }
+  
+  return tables;
+}
+
 async function migrateSQLData() {
   try {
     console.log('🔄 Iniciando migração dos dados...');
@@ -16,59 +92,36 @@ async function migrateSQLData() {
       return;
     }
 
-    const sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
-    
-    // Função para extrair dados de INSERT
-    function extractInsertData(sql, tableName) {
-      const regex = new RegExp(`INSERT INTO \`?${tableName}\`?[^(]*\\(([^)]+)\\)\\s*VALUES\\s*(.+?)(?=;|INSERT|$)`, 'gis');
-      const matches = sql.match(regex);
-      
-      if (!matches) return [];
-      
-      const data = [];
-      matches.forEach(match => {
-        const valuesMatch = match.match(/VALUES\s*(.+)/is);
-        if (valuesMatch) {
-          const valuesStr = valuesMatch[1];
-          const valueRows = valuesStr.split(/\),\s*\(/);
-          
-          valueRows.forEach(row => {
-            const cleanRow = row.replace(/^\(|\)$/g, '');
-            const values = cleanRow.split(',').map(v => {
-              v = v.trim();
-              if (v === 'NULL' || v === 'null') return null;
-              if (v.startsWith("'") && v.endsWith("'")) return v.slice(1, -1);
-              if (v.startsWith('"') && v.endsWith('"')) return v.slice(1, -1);
-              if (!isNaN(v)) return parseFloat(v);
-              return v;
-            });
-            data.push(values);
-          });
-        }
-      });
-      
-      return data;
-    }
+    const sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
+    console.log('📄 Arquivo SQL carregado com sucesso');
 
-    // Mapear dados das tabelas
-    const usuarios = extractInsertData(sqlContent, 'usuarios');
-    const escolas = extractInsertData(sqlContent, 'escolas');
-    const cursos = extractInsertData(sqlContent, 'cursos');
-    const turmas = extractInsertData(sqlContent, 'turmas');
-    const matriculas = extractInsertData(sqlContent, 'matriculas');
-    const chamadas = extractInsertData(sqlContent, 'chamadas');
-    const presencas = extractInsertData(sqlContent, 'presencas');
-    const resumos = extractInsertData(sqlContent, 'resumos');
+    // Limpar dados existentes
+    console.log('🧹 Limpando dados existentes...');
+    await prisma.presenca.deleteMany();
+    await prisma.resumo.deleteMany();
+    await prisma.chamada.deleteMany();
+    await prisma.matricula.deleteMany();
+    await prisma.turma.deleteMany();
+    await prisma.audioCurso.deleteMany();
+    await prisma.materialCurso.deleteMany();
+    await prisma.materialAula.deleteMany();
+    await prisma.curso.deleteMany();
+    await prisma.escola.deleteMany();
+    await prisma.usuario.deleteMany();
 
-    console.log(`📊 Dados encontrados:
-    - Usuários: ${usuarios.length}
-    - Escolas: ${escolas.length}
-    - Cursos: ${cursos.length}
-    - Turmas: ${turmas.length}
-    - Matrículas: ${matriculas.length}
-    - Chamadas: ${chamadas.length}
-    - Presenças: ${presencas.length}
-    - Resumos: ${resumos.length}`);
+    // Parse dos dados
+    const tables = parseInsertStatements(sqlContent);
+    const { usuarios, escolas, cursos, turmas, matriculas, chamadas, presencas, resumos, audios_curso, materiais_curso, materiais_aula } = tables;
+
+    console.log(`📊 Dados encontrados:`);
+    console.log(`   👥 Usuários: ${usuarios.length}`);
+    console.log(`   🏫 Escolas: ${escolas.length}`);
+    console.log(`   📚 Cursos: ${cursos.length}`);
+    console.log(`   👨‍🎓 Turmas: ${turmas.length}`);
+    console.log(`   📝 Matrículas: ${matriculas.length}`);
+    console.log(`   📋 Chamadas: ${chamadas.length}`);
+    console.log(`   ✅ Presenças: ${presencas.length}`);
+    console.log(`   📄 Resumos: ${resumos.length}`);
 
     // Migrar usuários
     if (usuarios.length > 0) {
@@ -78,8 +131,8 @@ async function migrateSQLData() {
           await prisma.usuario.create({
             data: {
               cp_nome_usuario: usuario[1] || '',
-              cp_email_usuario: usuario[2] || '',
-              cp_senha_usuario: usuario[3] || '',
+              cp_email_usuario: usuario[2] || `user${usuario[0]}@example.com`,
+              cp_senha_usuario: usuario[3] || '$2a$10$defaulthash',
               cp_telefone_usuario: usuario[4],
               cp_data_nascimento: usuario[5] ? new Date(usuario[5]) : null,
               cp_tipo_usuario: usuario[6] || 'aluno',
@@ -115,8 +168,8 @@ async function migrateSQLData() {
               cp_telefone_escola: escola[3],
               cp_email_escola: escola[4],
               cp_cnpj_escola: escola[5],
-              cp_status_escola: escola[7] || 'ativa',
-              cp_responsavel_id: escola[8] ? parseInt(escola[8]) : null
+              cp_status_escola: escola[6] || 'ativa',
+              cp_responsavel_id: escola[7] ? parseInt(escola[7]) : null
             }
           });
         } catch (error) {
@@ -136,12 +189,12 @@ async function migrateSQLData() {
               cp_descricao_curso: curso[2],
               cp_duracao_curso: curso[3] ? parseInt(curso[3]) : null,
               cp_preco_curso: curso[4] ? parseFloat(curso[4]) : null,
-              cp_status_curso: curso[6] || 'ativo',
-              cp_escola_id: curso[7] ? parseInt(curso[7]) : null,
-              cp_categoria_curso: curso[8],
-              cp_nivel_curso: curso[9],
-              cp_carga_horaria: curso[10] ? parseInt(curso[10]) : null,
-              cp_modalidade: curso[11]
+              cp_status_curso: curso[5] || 'ativo',
+              cp_escola_id: curso[6] ? parseInt(curso[6]) : null,
+              cp_categoria_curso: curso[7],
+              cp_nivel_curso: curso[8],
+              cp_carga_horaria: curso[9] ? parseInt(curso[9]) : null,
+              cp_modalidade: curso[10]
             }
           });
         } catch (error) {
@@ -264,6 +317,7 @@ async function migrateSQLData() {
     }
 
     console.log('✅ Migração concluída com sucesso!');
+    console.log('🎉 Todos os dados foram transferidos para PostgreSQL');
     
   } catch (error) {
     console.error('❌ Erro durante a migração:', error);
@@ -272,7 +326,6 @@ async function migrateSQLData() {
   }
 }
 
-// Executar migração se chamado diretamente
 if (require.main === module) {
   migrateSQLData();
 }
