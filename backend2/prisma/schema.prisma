@@ -9,30 +9,37 @@ datasource db {
 }
 
 model cp_usuarios {
-  cp_id                    Int      @id @default(autoincrement())
-  cp_nome                  String
-  cp_cpf                   String  
-  cp_data_nascimento       String
-  cp_telefone              String
-  cp_email                 String  
-  cp_senha                 String
-  cp_foto_perfil           String?
-  cp_local_nascimento      String?
-  cp_escolaridade          String?
-  cp_rede_social           String?
-  cp_nome_pai              String?
-  cp_contato_pai           String?
-  cp_nome_mae              String?
-  cp_contato_mae           String?
-  cp_nome_emergencia       String?
-  cp_contato_emergencia    String?
-  cp_tipo_usuario          Int?
-  cp_excluido              Int      @default(0)
-  created_at               DateTime @default(now())
-  updated_at               DateTime @updatedAt
+  cp_id                 Int      @id @default(autoincrement())
+  cp_nome               String
+  cp_email              String
+  cp_login              String
+  cp_password           String
+  cp_tipo_user          Int?
+  cp_rg                 String?
+  cp_cpf                String
+  cp_datanascimento     DateTime
+  cp_estadocivil        String?
+  cp_cnpj               BigInt?
+  cp_ie                 BigInt?
+  cp_whatsapp           String?
+  cp_telefone           String
+  cp_empresaatuacao     String?
+  cp_profissao          String?
+  cp_end_cidade_estado  String?
+  cp_end_rua            String?
+  cp_end_num            Int?
+  cp_end_cep            Int?
+  cp_descricao          String?
+  cp_foto_perfil        String?
+  cp_escola_id          Int?
+  cp_turma_id           Int?
+  cp_excluido           Int      @default(0)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
 
   @@map("cp_usuarios")
 }
+
 
 model cp_escolas {
   cp_ec_id         Int      @id @default(autoincrement())

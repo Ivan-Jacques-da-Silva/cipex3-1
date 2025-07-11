@@ -42,56 +42,66 @@ function encryptPassword(password) {
 async function migrateUsuarios() {
   try {
     const users = await fetchData("/usuarios-migracao");
-   
-    if (users.length === 0) {
-      return;
-    }
-    
+
+    if (users.length === 0) return;
+
     let migratedCount = 0;
-    
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     for (const user of users) {
       try {
-        let encryptedPassword = null;
-        if (user.cp_password) {
-          encryptedPassword = encryptPassword(user.cp_password);
-        }
-        
-        await prisma.cp_usuarios.create({
-          data: {
+        const encryptedPassword = user.cp_password
+          ? encryptPassword(user.cp_password)
+          : encryptPassword("escolacipex@123"); // senha padrão se estiver vazia
+
+        await prisma.cp_usuarios.upsert({
+          where: {
+            cp_id: user.cp_id,
+          },
+          update: {},
+          create: {
             cp_id: user.cp_id,
             cp_nome: user.cp_nome || "",
             cp_email: user.cp_email || "",
             cp_login: user.cp_login || "",
-            cp_password: encryptedPassword,
-            cp_tipo: user.cp_tipo,
-            cp_rg: user.cp_rg,
-            cp_cpf: user.cp_cpf,
-            cp_datanascimento: user.cp_datanascimento,
-            cp_estadocivil: user.cp_estadocivil,
-            cp_cnpj: user.cp_cnpj,
-            cp_ie: user.cp_ie,
-            cp_whatsapp: user.cp_whatsapp,
-            cp_telefone: user.cp_telefone,
-            cp_empresaatuacao: user.cp_empresaatuacao,
-            cp_profissao: user.cp_profissao,
-            cp_end_cidade_estado: user.cp_end_cidade_estado,
-            cp_end_rua: user.cp_end_rua,
-            cp_end_num: user.cp_end_num,
-            cp_end_cep: user.cp_end_cep,
-            cp_descricao: user.cp_descricao,
-            cp_foto_perfil: user.cp_foto_perfil,
-            cp_escola_id: user.cp_escola_id,
-            cp_turma_id: user.cp_turma_id,
-            cp_excluido: user.cp_excluido,
+            cp_password: encryptPassword(user.cp_password || "escolacipex@123"),
+            cp_tipo_user: parseInt(user.cp_tipo_user) || 5,
+            cp_rg: user.cp_rg || "",
+            cp_cpf: user.cp_cpf || "",
+            cp_datanascimento: user.cp_datanascimento && user.cp_datanascimento !== "0000-00-00"
+              ? new Date(user.cp_datanascimento)
+              : new Date("2000-01-01"),
+
+            cp_telefone: user.cp_telefone || "",
+            cp_escola_id: user.cp_escola_id || 1,
+            cp_foto_perfil: user.cp_foto_perfil || "/FotoPerfil/default.png",
+            cp_excluido: parseInt(user.cp_excluido) || 0,
+
+            // campos opcionais convertidos corretamente
+            cp_estadocivil: user.cp_estadocivil || null,
+            cp_cnpj: user.cp_cnpj ? BigInt(user.cp_cnpj) : null,
+            cp_ie: user.cp_ie ? BigInt(user.cp_ie) : null,
+            cp_whatsapp: user.cp_whatsapp || null,
+            cp_empresaatuacao: user.cp_empresaatuacao || null,
+            cp_profissao: user.cp_profissao || null,
+            cp_end_cidade_estado: user.cp_end_cidade_estado || null,
+            cp_end_rua: user.cp_end_rua || null,
+            cp_end_num: user.cp_end_num ? parseInt(user.cp_end_num) : null,
+            cp_end_cep: user.cp_end_cep ? parseInt(user.cp_end_cep) : null,
+            cp_descricao: user.cp_descricao || null,
+            cp_turma_id: user.cp_turma_id || null,
+
             created_at: new Date(),
             updated_at: new Date(),
           },
         });
-        
+        await delay(100);
         migratedCount++;
-        
       } catch (error) {
-        // Erro silencioso
+        console.error(`Erro ao migrar usuário ${user.cp_id}: ${error.message}`);
       }
     }
 
@@ -100,6 +110,7 @@ async function migrateUsuarios() {
     console.log(`✗ Erro ao migrar usuários`);
   }
 }
+
 
 // Função para migrar escolas
 async function migrateEscolas() {
