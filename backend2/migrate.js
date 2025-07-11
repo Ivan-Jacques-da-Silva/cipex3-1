@@ -89,8 +89,8 @@ async function migrateUsuarios() {
             cp_profissao: user.cp_profissao || null,
             cp_end_cidade_estado: user.cp_end_cidade_estado || null,
             cp_end_rua: user.cp_end_rua || null,
-            cp_end_num: user.cp_end_num ? parseInt(user.cp_end_num) : null,
-            cp_end_cep: user.cp_end_cep ? parseInt(user.cp_end_cep) : null,
+            cp_end_num: user.cp_end_num ? String(user.cp_end_num) : null,
+            cp_end_cep: user.cp_end_cep ? String(user.cp_end_cep) : null,
             cp_descricao: user.cp_descricao || null,
             cp_turma_id: user.cp_turma_id || null,
 

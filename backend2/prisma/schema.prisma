@@ -27,8 +27,8 @@ model cp_usuarios {
   cp_profissao          String?
   cp_end_cidade_estado  String?
   cp_end_rua            String?
-  cp_end_num            Int?
-  cp_end_cep            Int?
+  cp_end_num            String?
+  cp_end_cep            String?
   cp_descricao          String?
   cp_foto_perfil        String?
   cp_escola_id          Int?
