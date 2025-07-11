@@ -34,7 +34,25 @@ const LoginTela = () => {
         try {
             const response = await Axios.post(`${API_BASE_URL}/login`, values);
             console.log('Resposta recebida:', response.data);
-            setIsLoggingIn(true);
+            
+            if (response.data.success) {
+                // Salvar token e dados do usuário
+                localStorage.setItem('token', response.data.token);
+                localStorage.setItem('userType', response.data.user.tipo);
+                localStorage.setItem('userName', response.data.user.nome);
+                localStorage.setItem('userId', response.data.user.id);
+                localStorage.setItem('userEmail', response.data.user.email);
+                localStorage.setItem('userLogin', response.data.user.login);
+                
+                // Configurar token para próximas requisições
+                Axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+                
+                setIsLoggingIn(true);
+                navigate('/home');
+            } else {
+                setLoginError(true);
+                setIsLoggingIn(false);
+            }
 
             if (response.data.msg === 'Usuário Logado com sucesso') {
                 // console.log('Entrou no if: Usuário Logado com sucesso');

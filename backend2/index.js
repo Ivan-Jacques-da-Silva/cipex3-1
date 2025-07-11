@@ -5,10 +5,39 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 
 const app = express();
 const PORT = 3001;
+
+// JWT Secret - em produção, coloque isso no .env
+const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_super_segura_aqui';
+
+// Função para hash de senha
+const hashPassword = async (password) => {
+  const saltRounds = 10;
+  return await bcrypt.hash(password, saltRounds);
+};
+
+// Middleware de autenticação
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token de acesso requerido' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token inválido' });
+    }
+    req.user = user;
+    next();
+  });
+};
 
 // Middleware
 app.use(cors());
@@ -80,6 +109,189 @@ app.use('/MaterialCurso', express.static(path.join(__dirname, 'MaterialCurso')))
 app.use('/MaterialExtra', express.static(path.join(__dirname, 'MaterialExtra')));
 
 // ROTAS DA API
+
+// Rota de login
+app.post('/login', (req, res) => {
+  const { login, password } = req.body;
+
+  if (!login || !password) {
+    return res.status(400).json({ error: 'Login e senha são obrigatórios' });
+  }
+
+  // Buscar usuário no banco de dados
+  const query = 'SELECT * FROM cp_usuarios WHERE cp_login = ? AND cp_excluido = 0';
+  
+  db.query(query, [login], async (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar usuário:', err);
+      return res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+
+    if (results.length === 0) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    const user = results[0];
+
+    try {
+      // Verificar senha
+      const isPasswordValid = await bcrypt.compare(password, user.cp_password);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Credenciais inválidas' });
+      }
+
+      // Gerar token JWT
+      const token = jwt.sign(
+        { 
+          id: user.cp_id,
+          login: user.cp_login,
+          nome: user.cp_nome,
+          tipo: user.cp_tipo_user,
+          escola_id: user.cp_escola_id,
+          turma_id: user.cp_turma_id
+        },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      // Retornar dados do usuário e token
+      res.json({
+        success: true,
+        message: 'Login realizado com sucesso',
+        token,
+        user: {
+          id: user.cp_id,
+          nome: user.cp_nome,
+          email: user.cp_email,
+          login: user.cp_login,
+          tipo: user.cp_tipo_user,
+          escola_id: user.cp_escola_id,
+          turma_id: user.cp_turma_id,
+          foto_perfil: user.cp_foto_perfil
+        }
+      });
+
+    } catch (error) {
+      console.error('Erro ao verificar senha:', error);
+      return res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+});
+
+// Rota para verificar token
+app.get('/verify-token', authenticateToken, (req, res) => {
+  res.json({
+    success: true,
+    user: req.user
+  });
+});
+
+// Rota para buscar dados do usuário logado
+app.get('/me', authenticateToken, (req, res) => {
+  const query = 'SELECT * FROM cp_usuarios WHERE cp_id = ? AND cp_excluido = 0';
+  
+  db.query(query, [req.user.id], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar dados do usuário:', err);
+      return res.status(500).json({ error: 'Erro ao buscar dados do usuário' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    const user = results[0];
+    // Remover senha da resposta
+    delete user.cp_password;
+    
+    res.json(user);
+  });
+});
+
+// Rota para registro de usuários
+app.post('/register', async (req, res) => {
+  const {
+    cp_nome,
+    cp_email,
+    cp_login,
+    cp_password,
+    cp_tipo_user,
+    cp_rg,
+    cp_cpf,
+    cp_datanascimento,
+    cp_estadocivil,
+    cp_cnpj,
+    cp_ie,
+    cp_whatsapp,
+    cp_telefone,
+    cp_empresaatuacao,
+    cp_profissao,
+    cp_end_cidade_estado,
+    cp_end_rua,
+    cp_end_num,
+    cp_end_cep,
+    cp_descricao,
+    cp_escola_id,
+    cp_turma_id
+  } = req.body;
+
+  if (!cp_nome || !cp_email || !cp_login || !cp_password || !cp_cpf) {
+    return res.status(400).json({ error: 'Campos obrigatórios: nome, email, login, senha e CPF' });
+  }
+
+  try {
+    // Verificar se login já existe
+    const checkQuery = 'SELECT cp_id FROM cp_usuarios WHERE cp_login = ? OR cp_email = ?';
+    db.query(checkQuery, [cp_login, cp_email], async (err, results) => {
+      if (err) {
+        console.error('Erro ao verificar usuário existente:', err);
+        return res.status(500).json({ error: 'Erro interno do servidor' });
+      }
+
+      if (results.length > 0) {
+        return res.status(400).json({ error: 'Login ou email já cadastrado' });
+      }
+
+      // Hash da senha
+      const hashedPassword = await hashPassword(cp_password);
+
+      // Inserir usuário
+      const insertQuery = `
+        INSERT INTO cp_usuarios (
+          cp_nome, cp_email, cp_login, cp_password, cp_tipo_user, cp_rg, cp_cpf, 
+          cp_datanascimento, cp_estadocivil, cp_cnpj, cp_ie, cp_whatsapp, cp_telefone,
+          cp_empresaatuacao, cp_profissao, cp_end_cidade_estado, cp_end_rua, cp_end_num,
+          cp_end_cep, cp_descricao, cp_escola_id, cp_turma_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      const values = [
+        cp_nome, cp_email, cp_login, hashedPassword, cp_tipo_user, cp_rg, cp_cpf,
+        cp_datanascimento, cp_estadocivil, cp_cnpj, cp_ie, cp_whatsapp, cp_telefone,
+        cp_empresaatuacao, cp_profissao, cp_end_cidade_estado, cp_end_rua, cp_end_num,
+        cp_end_cep, cp_descricao, cp_escola_id, cp_turma_id
+      ];
+
+      db.query(insertQuery, values, (err, result) => {
+        if (err) {
+          console.error('Erro ao cadastrar usuário:', err);
+          return res.status(500).json({ error: 'Erro ao cadastrar usuário' });
+        }
+
+        res.status(201).json({
+          success: true,
+          message: 'Usuário cadastrado com sucesso',
+          userId: result.insertId
+        });
+      });
+    });
+
+  } catch (error) {
+    console.error('Erro ao processar cadastro:', error);
+    return res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
 
 // 1. Rota para buscar todas as turmas
 app.get('/turmas', (req, res) => {
@@ -185,7 +397,7 @@ app.post('/cursos/batch', (req, res) => {
 });
 
 // 6. Rota para deletar turma
-app.delete('/delete-turma/:turmaId', (req, res) => {
+app.delete('/delete-turma/:turmaId', authenticateToken, (req, res) => {
   const { turmaId } = req.params;
   
   const query = 'DELETE FROM cp_turmas WHERE cp_tr_id = ?';
@@ -432,7 +644,7 @@ app.get('/cursos', (req, res) => {
 });
 
 // 19. Rota para deletar curso
-app.delete('/delete-curso/:cursoId', (req, res) => {
+app.delete('/delete-curso/:cursoId', authenticateToken, (req, res) => {
   const { cursoId } = req.params;
   
   const query = 'DELETE FROM cp_cursos WHERE cp_curso_id = ?';
@@ -465,7 +677,7 @@ app.get('/material-extra', (req, res) => {
 });
 
 // 21. Rota para deletar material extra
-app.delete('/material-extra/:id', (req, res) => {
+app.delete('/material-extra/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   
   const query = 'DELETE FROM cp_materiais_extra WHERE cp_mat_extra_id = ?';
