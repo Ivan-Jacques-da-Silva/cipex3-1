@@ -1,9 +1,11 @@
 
 const express = require('express');
-const mysql = require('mysql2');
+require('dotenv').config();
+const { Pool } = require('pg');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+
 
 const app = express();
 const PORT = 3001;
@@ -13,21 +15,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Configuração do banco de dados
-const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'cipex'
+// Configuração do banco de dados PostgreSQL
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/cipex',
+  ssl: false
 });
 
 // Conectar ao banco
-db.connect((err) => {
+db.connect((err, client, release) => {
   if (err) {
     console.error('Erro ao conectar ao banco de dados:', err);
     return;
   }
-  console.log('Conectado ao banco de dados MySQL');
+  console.log('Conectado ao banco de dados PostgreSQL');
+  release();
 });
 
 // Configuração do multer para upload de arquivos
@@ -40,10 +41,43 @@ const materialStorage = multer.diskStorage({
   }
 });
 
+const audioStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'AudiosCurso');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const materialCursoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'MaterialCurso');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const materialExtraStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'MaterialExtra');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
 const materialUpload = multer({ storage: materialStorage });
+const audioUpload = multer({ storage: audioStorage });
+const materialCursoUpload = multer({ storage: materialCursoStorage });
+const materialExtraUpload = multer({ storage: materialExtraStorage });
 
 // Servir arquivos estáticos
 app.use('/materialdeaula', express.static(path.join(__dirname, 'materialdeaula')));
+app.use('/AudiosCurso', express.static(path.join(__dirname, 'AudiosCurso')));
+app.use('/MaterialCurso', express.static(path.join(__dirname, 'MaterialCurso')));
+app.use('/MaterialExtra', express.static(path.join(__dirname, 'MaterialExtra')));
 
 // ROTAS DA API
 
@@ -284,6 +318,191 @@ app.get('/resumos/:data/:turmaId', (req, res) => {
       return res.status(500).json({ error: 'Erro ao buscar resumos' });
     }
     res.json(results);
+  });
+});
+
+// 13. Rota para buscar curso ID da turma
+app.get('/curso-id-da-turma/:turmaId', (req, res) => {
+  const { turmaId } = req.params;
+  
+  const query = 'SELECT cp_tr_curso_id FROM cp_turmas WHERE cp_tr_id = ?';
+  
+  db.query(query, [turmaId], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar curso ID da turma:', err);
+      return res.status(500).json({ error: 'Erro ao buscar curso ID da turma' });
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Turma não encontrada' });
+    }
+    
+    res.json(results[0]);
+  });
+});
+
+// 14. Rota para buscar material do curso
+app.get('/curso-material/:cursoId', (req, res) => {
+  const { cursoId } = req.params;
+  
+  const query = 'SELECT * FROM cp_materiais WHERE cp_mat_curso_id = ?';
+  
+  db.query(query, [cursoId], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar material do curso:', err);
+      return res.status(500).json({ error: 'Erro ao buscar material do curso' });
+    }
+    res.json(results);
+  });
+});
+
+// 15. Rota para buscar áudios do curso
+app.get('/audios-curso/:cursoId', (req, res) => {
+  const { cursoId } = req.params;
+  
+  const query = 'SELECT * FROM cp_audios WHERE cp_audio_curso_id = ?';
+  
+  db.query(query, [cursoId], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar áudios do curso:', err);
+      return res.status(500).json({ error: 'Erro ao buscar áudios do curso' });
+    }
+    res.json(results);
+  });
+});
+
+// 16. Rota para buscar áudios marcados pelo usuário
+app.get('/audios-marcados/:userId', (req, res) => {
+  const { userId } = req.params;
+  
+  const query = 'SELECT cp_audio_id FROM cp_visualizacoes_audio WHERE cp_usuario_id = ?';
+  
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar áudios marcados:', err);
+      return res.status(500).json({ error: 'Erro ao buscar áudios marcados' });
+    }
+    
+    const audioIds = results.map(row => row.cp_audio_id);
+    res.json(audioIds);
+  });
+});
+
+// 17. Rota para registrar visualização de áudio
+app.post('/registrar-visualizacao', (req, res) => {
+  const { userId, audioId } = req.body;
+  
+  // Verificar se já existe
+  const checkQuery = 'SELECT * FROM cp_visualizacoes_audio WHERE cp_usuario_id = ? AND cp_audio_id = ?';
+  
+  db.query(checkQuery, [userId, audioId], (err, results) => {
+    if (err) {
+      console.error('Erro ao verificar visualização:', err);
+      return res.status(500).json({ error: 'Erro ao verificar visualização' });
+    }
+    
+    if (results.length > 0) {
+      return res.json({ message: 'Visualização já registrada' });
+    }
+    
+    // Inserir nova visualização
+    const insertQuery = 'INSERT INTO cp_visualizacoes_audio (cp_usuario_id, cp_audio_id, cp_data_visualizacao) VALUES (?, ?, NOW())';
+    
+    db.query(insertQuery, [userId, audioId], (err, result) => {
+      if (err) {
+        console.error('Erro ao registrar visualização:', err);
+        return res.status(500).json({ error: 'Erro ao registrar visualização' });
+      }
+      res.json({ message: 'Visualização registrada com sucesso' });
+    });
+  });
+});
+
+// 18. Rota para buscar todos os cursos
+app.get('/cursos', (req, res) => {
+  const query = 'SELECT * FROM cp_cursos';
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar cursos:', err);
+      return res.status(500).json({ error: 'Erro ao buscar cursos' });
+    }
+    res.json(results);
+  });
+});
+
+// 19. Rota para deletar curso
+app.delete('/delete-curso/:cursoId', (req, res) => {
+  const { cursoId } = req.params;
+  
+  const query = 'DELETE FROM cp_cursos WHERE cp_curso_id = ?';
+  
+  db.query(query, [cursoId], (err, result) => {
+    if (err) {
+      console.error('Erro ao deletar curso:', err);
+      return res.status(500).json({ error: 'Erro ao deletar curso' });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Curso não encontrado' });
+    }
+    
+    res.json({ message: 'Curso deletado com sucesso' });
+  });
+});
+
+// 20. Rota para buscar material extra
+app.get('/material-extra', (req, res) => {
+  const query = 'SELECT * FROM cp_materiais_extra';
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar material extra:', err);
+      return res.status(500).json({ error: 'Erro ao buscar material extra' });
+    }
+    res.json(results);
+  });
+});
+
+// 21. Rota para deletar material extra
+app.delete('/material-extra/:id', (req, res) => {
+  const { id } = req.params;
+  
+  const query = 'DELETE FROM cp_materiais_extra WHERE cp_mat_extra_id = ?';
+  
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      console.error('Erro ao deletar material extra:', err);
+      return res.status(500).json({ error: 'Erro ao deletar material extra' });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Material não encontrado' });
+    }
+    
+    res.json({ message: 'Material deletado com sucesso' });
+  });
+});
+
+// 22. Rota proxy para download
+app.get('/proxy-download', (req, res) => {
+  const { url } = req.query;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'URL é obrigatória' });
+  }
+  
+  const filePath = path.join(__dirname, url);
+  
+  if (!filePath.startsWith(__dirname)) {
+    return res.status(400).json({ error: 'Caminho inválido' });
+  }
+  
+  res.download(filePath, (err) => {
+    if (err) {
+      console.error('Erro ao fazer download:', err);
+      res.status(404).json({ error: 'Arquivo não encontrado' });
+    }
   });
 });
 

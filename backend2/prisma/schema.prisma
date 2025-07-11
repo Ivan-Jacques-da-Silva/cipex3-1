@@ -1,0 +1,208 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model cp_usuarios {
+  cp_id                    Int      @id @default(autoincrement())
+  cp_nome                  String
+  cp_cpf                   String  
+  cp_data_nascimento       String
+  cp_telefone              String
+  cp_email                 String  
+  cp_senha                 String
+  cp_foto_perfil           String?
+  cp_local_nascimento      String?
+  cp_escolaridade          String?
+  cp_rede_social           String?
+  cp_nome_pai              String?
+  cp_contato_pai           String?
+  cp_nome_mae              String?
+  cp_contato_mae           String?
+  cp_nome_emergencia       String?
+  cp_contato_emergencia    String?
+  cp_tipo_usuario          Int?
+  cp_excluido              Int      @default(0)
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  @@map("cp_usuarios")
+}
+
+model cp_escolas {
+  cp_ec_id         Int      @id @default(autoincrement())
+  cp_ec_nome       String
+  cp_ec_telefone   String
+  cp_ec_email      String
+  cp_ec_endereco   String
+  cp_ec_excluido   Int      @default(0)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@map("cp_escolas")
+}
+
+model cp_cursos {
+  cp_id_curso          Int      @id @default(autoincrement())
+  cp_nome_curso        String
+  cp_descricao_curso   String?
+  cp_preco_curso       Float
+  cp_duracao_meses     Int
+  cp_excluido          Int      @default(0)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  @@map("cp_cursos")
+}
+
+model cp_turmas {
+  cp_tr_id              Int      @id @default(autoincrement())
+  cp_tr_nome            String
+  cp_tr_curso_id        Int
+  cp_tr_professor_id    Int
+  cp_tr_escola_id       Int
+  cp_tr_horario_inicio  String
+  cp_tr_horario_fim     String
+  cp_tr_dias_semana     String
+  cp_tr_data_inicio     String
+  cp_tr_data_fim        String
+  cp_tr_excluido        Int      @default(0)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@map("cp_turmas")
+}
+
+model cp_matriculas {
+  cp_mt_id                      Int      @id @default(autoincrement())
+  cp_mt_curso                   Int
+  cp_mt_usuario_id              Int
+  cp_mt_escola_id               Int
+  cp_mt_nome_usuario            String
+  cp_mt_cpf_usuario             String
+  cp_mt_valor_curso             Float
+  cp_mt_numero_parcelas         Int
+  cp_mt_primeira_data_pagamento String
+  cp_mt_status                  String
+  cp_mt_nivel_idioma            String?
+  cp_mt_horario_inicio          String?
+  cp_mt_horario_fim             String?
+  cp_mt_local_nascimento        String?
+  cp_mt_escolaridade            String?
+  cp_mt_rede_social             String?
+  cp_mt_nome_pai                String?
+  cp_mt_contato_pai             String?
+  cp_mt_nome_mae                String?
+  cp_mt_contato_mae             String?
+  cp_mt_nome_emergencia         String?
+  cp_mt_contato_emergencia      String?
+  cp_mt_excluido                Int      @default(0)
+  created_at                    DateTime @default(now())
+  updated_at                    DateTime @updatedAt
+
+  @@map("cp_matriculas")
+}
+
+model cp_audios {
+  cp_aud_id          Int      @id @default(autoincrement())
+  cp_aud_titulo      String
+  cp_aud_descricao   String?
+  cp_aud_arquivo     String
+  cp_aud_curso_id    Int?
+  cp_aud_excluido    Int      @default(0)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@map("cp_audios")
+}
+
+model cp_mat_extra {
+  cp_mat_extra_id           Int      @id @default(autoincrement())
+  cp_mat_extra_title        String
+  cp_mat_extra_category     String
+  cp_mat_extra_desc         String?
+  cp_mat_extra_file         String
+  cp_mat_extra_categories   String?
+  cp_mat_extra_codigos      String?
+  cp_mat_extra_thumbnail    String?
+  cp_mat_extra_pdf1         String?
+  cp_mat_extra_pdf2         String?
+  cp_mat_extra_pdf3         String?
+  cp_mat_extra_permitirDownload Int?
+  cp_mat_extra_excluido     Int      @default(0)
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+
+  @@map("cp_mat_extra")
+}
+
+model cp_mat_materiais {
+  cp_mat_id                    Int      @id @default(autoincrement())
+  cp_mat_titulo                String
+  cp_mat_descricao             String?
+  cp_mat_extra_date            DateTime?
+  cp_mat_linkYoutube           String?
+  cp_mat_miniatura             String?
+  cp_mat_arquivoPdf            String?
+  cp_mat_extra_pdf2            String?
+  cp_mat_extra_pdf3            String?
+  cp_mat_extra_categories      String?
+  cp_mat_permitirDownload      Int?
+  cp_mat_extra_excluido        Int      @default(0)
+  created_at                   DateTime @default(now())
+  updated_at                   DateTime @updatedAt
+
+  @@map("cp_mat_materiais")
+}
+
+model cp_resumos {
+  cp_res_id         Int      @id @default(autoincrement())
+  cp_res_turma_id   Int
+  cp_res_data       DateTime
+  cp_res_hora       String
+  cp_res_resumo     String?
+  cp_res_arquivo    String?
+  cp_res_aula       String?
+  cp_res_link       String?
+  cp_res_link_youtube String?
+  cp_res_excluido   Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@map("cp_resumos")
+}
+
+model cp_registro_aulas {
+  cp_reg_id              Int      @id @default(autoincrement())
+  cp_reg_turma_id        Int
+  cp_reg_professor_id    Int
+  cp_reg_data            String
+  cp_reg_horario_inicio  String
+  cp_reg_horario_fim     String
+  cp_reg_observacoes     String?
+  cp_reg_presentes       String?
+  cp_reg_excluido        Int      @default(0)
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  @@map("cp_registro_aulas")
+}
+
+model cp_historico_chamadas {
+  cp_hist_id         Int      @id @default(autoincrement())
+  cp_hist_aluno_id   Int
+  cp_hist_turma_id   Int
+  cp_hist_data       String
+  cp_hist_presente   Boolean
+  cp_hist_observacao String?
+  cp_hist_excluido   Int      @default(0)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@map("cp_historico_chamadas")
+}
