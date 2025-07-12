@@ -1,4 +1,3 @@
-
 const express = require('express');
 require('dotenv').config();
 const { Pool } = require('pg');
@@ -26,7 +25,7 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   console.log('=== MIDDLEWARE AUTH ===');
   console.log('Authorization header:', authHeader);
-  
+
   const token = authHeader && authHeader.split(' ')[1];
   console.log('Token extraído:', token ? token.substring(0, 50) + '...' : 'null');
 
@@ -160,7 +159,7 @@ app.post('/login', (req, res) => {
 
   // Buscar usuário no banco de dados - primeiro vamos listar todos os usuários para debug
   const debugQuery = 'SELECT cp_id, cp_login, cp_nome FROM cp_usuarios WHERE cp_excluido = 0';
-  
+
   db.query(debugQuery, [], (debugErr, debugResults) => {
     if (!debugErr) {
       console.log('=== USUÁRIOS DISPONÍVEIS NO BANCO ===');
@@ -171,10 +170,10 @@ app.post('/login', (req, res) => {
 
     // Agora fazer a busca real
     const query = 'SELECT * FROM cp_usuarios WHERE cp_login = $1 AND cp_excluido = 0';
-    
+
     console.log('Executando query:', query);
     console.log('Parâmetro:', login);
-    
+
     db.query(query, [login], async (err, results) => {
       if (err) {
         console.error('Erro ao buscar usuário:', err);
@@ -185,10 +184,10 @@ app.post('/login', (req, res) => {
       }
 
       console.log('Resultados encontrados:', results.rows.length);
-      
+
       if (results.rows.length === 0) {
         console.log('Usuário não encontrado:', login);
-        
+
         // Vamos tentar busca case-insensitive
         const caseInsensitiveQuery = 'SELECT * FROM cp_usuarios WHERE LOWER(cp_login) = LOWER($1) AND cp_excluido = 0';
         db.query(caseInsensitiveQuery, [login], (err2, results2) => {
@@ -198,7 +197,7 @@ app.post('/login', (req, res) => {
             console.log('Usuário não encontrado mesmo com busca case-insensitive');
           }
         });
-        
+
         return res.status(401).json({ 
           success: false, 
           msg: 'Credenciais inválidas' 
@@ -218,7 +217,7 @@ app.post('/login', (req, res) => {
       try {
         // Verificar senha - primeiro tenta bcrypt, depois senha direta
         let isPasswordValid = false;
-        
+
         if (user.cp_password && user.cp_password.startsWith('$2')) {
           // Senha já está hasheada com bcrypt
           console.log('Verificando senha com bcrypt...');
@@ -230,9 +229,9 @@ app.post('/login', (req, res) => {
           console.log('Password informada:', password);
           isPasswordValid = (password === user.cp_password);
         }
-        
+
         console.log('Senha válida:', isPasswordValid);
-        
+
         if (!isPasswordValid) {
           return res.status(401).json({ 
             success: false, 
@@ -249,11 +248,11 @@ app.post('/login', (req, res) => {
           escola_id: user.cp_escola_id,
           turma_id: user.cp_turma_id
         };
-        
+
         console.log('Payload do token:', tokenPayload);
-        
+
         const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
-        
+
         console.log('Token gerado:', token.substring(0, 50) + '...');
 
         // Retornar dados no formato esperado pelo frontend
@@ -278,7 +277,7 @@ app.post('/login', (req, res) => {
             foto_perfil: user.cp_foto_perfil
           }
         };
-        
+
         console.log('Resposta de sucesso:', responseData);
         res.json(responseData);
 
@@ -304,7 +303,7 @@ app.get('/verify-token', authenticateToken, (req, res) => {
 // Rota para buscar dados do usuário logado
 app.get('/me', authenticateToken, (req, res) => {
   const query = 'SELECT * FROM cp_usuarios WHERE cp_id = $1 AND cp_excluido = 0';
-  
+
   db.query(query, [req.user.id], (err, results) => {
     if (err) {
       console.error('Erro ao buscar dados do usuário:', err);
@@ -318,7 +317,7 @@ app.get('/me', authenticateToken, (req, res) => {
     const user = results.rows[0];
     // Remover senha da resposta
     delete user.cp_password;
-    
+
     res.json(user);
   });
 });
@@ -418,7 +417,7 @@ app.get('/turmas', (req, res) => {
     LEFT JOIN cp_usuarios u ON t.cp_tr_id_professor = u.cp_id
     LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
   `;
-  
+
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar turmas:', err);
@@ -439,7 +438,7 @@ app.get('/turmasComAlunos', (req, res) => {
     LEFT JOIN cp_usuarios u ON t.cp_tr_id_professor = u.cp_id
     LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
   `;
-  
+
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar turmas com alunos:', err);
@@ -452,14 +451,14 @@ app.get('/turmasComAlunos', (req, res) => {
 // 3. Rota para buscar alunos de uma turma específica
 app.get('/turmas/:turmaId/alunos', (req, res) => {
   const { turmaId } = req.params;
-  
+
   const query = `
     SELECT 
       u.*
     FROM cp_usuarios u
     WHERE u.cp_turma_id = $1 AND u.cp_tipo_user = 5 AND u.cp_excluido = 0
   `;
-  
+
   db.query(query, [turmaId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar alunos da turma:', err);
@@ -472,19 +471,19 @@ app.get('/turmas/:turmaId/alunos', (req, res) => {
 // 4. Rota para buscar curso por ID
 app.get('/cursos/:cursoId', (req, res) => {
   const { cursoId } = req.params;
-  
+
   const query = 'SELECT * FROM cp_cursos WHERE cp_id = $1';
-  
+
   db.query(query, [cursoId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar curso:', err);
       return res.status(500).json({ error: 'Erro ao buscar curso' });
     }
-    
+
     if (results.rows.length === 0) {
       return res.status(404).json({ error: 'Curso não encontrado' });
     }
-    
+
     res.json(results.rows[0]);
   });
 });
@@ -492,14 +491,14 @@ app.get('/cursos/:cursoId', (req, res) => {
 // 5. Rota para buscar múltiplos cursos
 app.post('/cursos/batch', (req, res) => {
   const { cursoIds } = req.body;
-  
+
   if (!cursoIds || cursoIds.length === 0) {
     return res.json([]);
   }
-  
+
   const placeholders = cursoIds.map((_, index) => `$${index + 1}`).join(',');
   const query = `SELECT * FROM cp_cursos WHERE cp_id IN (${placeholders})`;
-  
+
   db.query(query, cursoIds, (err, results) => {
     if (err) {
       console.error('Erro ao buscar cursos em lote:', err);
@@ -512,19 +511,19 @@ app.post('/cursos/batch', (req, res) => {
 // 6. Rota para deletar turma
 app.delete('/delete-turma/:turmaId', authenticateToken, (req, res) => {
   const { turmaId } = req.params;
-  
+
   const query = 'DELETE FROM cp_turmas WHERE cp_tr_id = $1';
-  
+
   db.query(query, [turmaId], (err, result) => {
     if (err) {
       console.error('Erro ao deletar turma:', err);
       return res.status(500).json({ error: 'Erro ao deletar turma' });
     }
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Turma não encontrada' });
     }
-    
+
     res.json({ message: 'Turma deletada com sucesso' });
   });
 });
@@ -532,7 +531,7 @@ app.delete('/delete-turma/:turmaId', authenticateToken, (req, res) => {
 // 7. Rota para buscar professores
 app.get('/users-professores', (req, res) => {
   const query = 'SELECT * FROM cp_usuarios WHERE cp_tipo_user = 4 AND cp_excluido = 0';
-  
+
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar professores:', err);
@@ -545,9 +544,9 @@ app.get('/users-professores', (req, res) => {
 // 8. Rota para buscar turmas de um professor
 app.get('/cp_turmas/professor/:professorId', (req, res) => {
   const { professorId } = req.params;
-  
+
   const query = 'SELECT * FROM cp_turmas WHERE cp_tr_id_professor = $1';
-  
+
   db.query(query, [professorId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar turmas do professor:', err);
@@ -560,7 +559,7 @@ app.get('/cp_turmas/professor/:professorId', (req, res) => {
 // 9. Rota para buscar todos os materiais
 app.get('/materiais', (req, res) => {
   const query = 'SELECT * FROM cp_materiais_extra';
-  
+
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar materiais:', err);
@@ -573,7 +572,7 @@ app.get('/materiais', (req, res) => {
 // 10. Rota para buscar materiais de uma turma específica
 app.get('/materiais/:turmaID', (req, res) => {
   const { turmaID } = req.params;
-  
+
   const query = `
     SELECT 
       cp_res_id, 
@@ -588,7 +587,7 @@ app.get('/materiais/:turmaID', (req, res) => {
     FROM cp_resumos 
     WHERE cp_res_turma_id = $1
   `;
-  
+
   db.query(query, [turmaID], (err, results) => {
     if (err) {
       console.error('Erro ao buscar materiais da turma:', err);
@@ -649,19 +648,19 @@ app.get('/resumos/:data/:turmaId', (req, res) => {
 // 13. Rota para buscar curso ID da turma
 app.get('/curso-id-da-turma/:turmaId', (req, res) => {
   const { turmaId } = req.params;
-  
+
   const query = 'SELECT cp_tr_curso_id FROM cp_turmas WHERE cp_tr_id = $1';
-  
+
   db.query(query, [turmaId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar curso ID da turma:', err);
       return res.status(500).json({ error: 'Erro ao buscar curso ID da turma' });
     }
-    
+
     if (results.rows.length === 0) {
       return res.status(404).json({ error: 'Turma não encontrada' });
     }
-    
+
     res.json(results.rows[0]);
   });
 });
@@ -669,9 +668,9 @@ app.get('/curso-id-da-turma/:turmaId', (req, res) => {
 // 14. Rota para buscar material do curso
 app.get('/curso-material/:cursoId', (req, res) => {
   const { cursoId } = req.params;
-  
+
   const query = 'SELECT * FROM cp_materiais WHERE cp_mat_curso_id = $1';
-  
+
   db.query(query, [cursoId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar material do curso:', err);
@@ -684,9 +683,9 @@ app.get('/curso-material/:cursoId', (req, res) => {
 // 15. Rota para buscar áudios do curso
 app.get('/audios-curso/:cursoId', (req, res) => {
   const { cursoId } = req.params;
-  
+
   const query = 'SELECT * FROM cp_audios WHERE cp_audio_curso_id = $1';
-  
+
   db.query(query, [cursoId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar áudios do curso:', err);
@@ -699,15 +698,15 @@ app.get('/audios-curso/:cursoId', (req, res) => {
 // 16. Rota para buscar áudios marcados pelo usuário
 app.get('/audios-marcados/:userId', (req, res) => {
   const { userId } = req.params;
-  
+
   const query = 'SELECT cp_audio_id FROM cp_visualizacoes_audio WHERE cp_usuario_id = $1';
-  
+
   db.query(query, [userId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar áudios marcados:', err);
       return res.status(500).json({ error: 'Erro ao buscar áudios marcados' });
     }
-    
+
     const audioIds = results.rows.map(row => row.cp_audio_id);
     res.json(audioIds);
   });
@@ -716,23 +715,23 @@ app.get('/audios-marcados/:userId', (req, res) => {
 // 17. Rota para registrar visualização de áudio
 app.post('/registrar-visualizacao', (req, res) => {
   const { userId, audioId } = req.body;
-  
+
   // Verificar se já existe
   const checkQuery = 'SELECT * FROM cp_visualizacoes_audio WHERE cp_usuario_id = $1 AND cp_audio_id = $2';
-  
+
   db.query(checkQuery, [userId, audioId], (err, results) => {
     if (err) {
       console.error('Erro ao verificar visualização:', err);
       return res.status(500).json({ error: 'Erro ao verificar visualização' });
     }
-    
+
     if (results.rows.length > 0) {
       return res.json({ message: 'Visualização já registrada' });
     }
-    
+
     // Inserir nova visualização
     const insertQuery = 'INSERT INTO cp_visualizacoes_audio (cp_usuario_id, cp_audio_id, cp_data_visualizacao) VALUES ($1, $2, NOW())';
-    
+
     db.query(insertQuery, [userId, audioId], (err, result) => {
       if (err) {
         console.error('Erro ao registrar visualização:', err);
@@ -746,7 +745,7 @@ app.post('/registrar-visualizacao', (req, res) => {
 // 18. Rota para buscar todos os cursos
 app.get('/cursos', (req, res) => {
   const query = 'SELECT * FROM cp_cursos';
-  
+
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar cursos:', err);
@@ -759,19 +758,19 @@ app.get('/cursos', (req, res) => {
 // 19. Rota para deletar curso
 app.delete('/delete-curso/:cursoId', authenticateToken, (req, res) => {
   const { cursoId } = req.params;
-  
+
   const query = 'DELETE FROM cp_cursos WHERE cp_curso_id = $1';
-  
+
   db.query(query, [cursoId], (err, result) => {
     if (err) {
       console.error('Erro ao deletar curso:', err);
       return res.status(500).json({ error: 'Erro ao deletar curso' });
     }
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Curso não encontrado' });
     }
-    
+
     res.json({ message: 'Curso deletado com sucesso' });
   });
 });
@@ -779,7 +778,7 @@ app.delete('/delete-curso/:cursoId', authenticateToken, (req, res) => {
 // 20. Rota para buscar material extra
 app.get('/material-extra', (req, res) => {
   const query = 'SELECT * FROM cp_materiais_extra';
-  
+
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar material extra:', err);
@@ -792,19 +791,19 @@ app.get('/material-extra', (req, res) => {
 // 21. Rota para deletar material extra
 app.delete('/material-extra/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
-  
+
   const query = 'DELETE FROM cp_materiais_extra WHERE cp_mat_extra_id = $1';
-  
+
   db.query(query, [id], (err, result) => {
     if (err) {
       console.error('Erro ao deletar material extra:', err);
       return res.status(500).json({ error: 'Erro ao deletar material extra' });
     }
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Material não encontrado' });
     }
-    
+
     res.json({ message: 'Material deletado com sucesso' });
   });
 });
@@ -812,7 +811,7 @@ app.delete('/material-extra/:id', authenticateToken, (req, res) => {
 // 22. Rota para buscar todas as escolas
 app.get('/escolas', (req, res) => {
   const query = 'SELECT * FROM cp_escolas WHERE cp_excluido = 0 OR cp_excluido IS NULL';
-  
+
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar escolas:', err);
@@ -825,11 +824,11 @@ app.get('/escolas', (req, res) => {
 // 23. Rota para buscar todos os usuários
 app.get('/usuarios', (req, res) => {
   const query = 'SELECT * FROM cp_usuarios WHERE cp_excluido = 0';
-  
+
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar usuários:', err);
-      return res.status(500).json({ error: 'Erro ao buscar usuários' });
+      return res.status(500.json({ error: 'Erro ao buscar usuários' });
     }
     res.json(results.rows);
   });
@@ -838,7 +837,7 @@ app.get('/usuarios', (req, res) => {
 // 24. Rota para buscar turma específica por ID
 app.get('/turmas/:turmaId', (req, res) => {
   const { turmaId } = req.params;
-  
+
   const query = `
     SELECT 
       t.*,
@@ -849,17 +848,17 @@ app.get('/turmas/:turmaId', (req, res) => {
     LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
     WHERE t.cp_tr_id = $1
   `;
-  
+
   db.query(query, [turmaId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar turma:', err);
       return res.status(500).json({ error: 'Erro ao buscar turma' });
     }
-    
+
     if (results.rows.length === 0) {
       return res.status(404).json({ error: 'Turma não encontrada' });
     }
-    
+
     res.json(results.rows[0]);
   });
 });
@@ -867,17 +866,17 @@ app.get('/turmas/:turmaId', (req, res) => {
 // 25. Rota proxy para download
 app.get('/proxy-download', (req, res) => {
   const { url } = req.query;
-  
+
   if (!url) {
     return res.status(400).json({ error: 'URL é obrigatória' });
   }
-  
+
   const filePath = path.join(__dirname, url);
-  
+
   if (!filePath.startsWith(__dirname)) {
     return res.status(400).json({ error: 'Caminho inválido' });
   }
-  
+
   res.download(filePath, (err) => {
     if (err) {
       console.error('Erro ao fazer download:', err);
@@ -1056,7 +1055,7 @@ app.get('/matriculas', (req, res) => {
     LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
     WHERE m.cp_excluido = 0 OR m.cp_excluido IS NULL
   `;
-  
+
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar matrículas:', err);
@@ -1069,7 +1068,7 @@ app.get('/matriculas', (req, res) => {
 // Buscar matrícula por ID
 app.get('/matriculas/:id', (req, res) => {
   const { id } = req.params;
-  
+
   const query = `
     SELECT 
       m.*,
@@ -1083,17 +1082,17 @@ app.get('/matriculas/:id', (req, res) => {
     LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
     WHERE m.cp_id = $1 AND (m.cp_excluido = 0 OR m.cp_excluido IS NULL)
   `;
-  
+
   db.query(query, [id], (err, results) => {
     if (err) {
       console.error('Erro ao buscar matrícula:', err);
       return res.status(500).json({ error: 'Erro ao buscar matrícula' });
     }
-    
+
     if (results.rows.length === 0) {
       return res.status(404).json({ error: 'Matrícula não encontrada' });
     }
-    
+
     res.json(results.rows[0]);
   });
 });
@@ -1101,19 +1100,19 @@ app.get('/matriculas/:id', (req, res) => {
 // Buscar escola por ID
 app.get('/escolas/:id', (req, res) => {
   const { id } = req.params;
-  
+
   const query = 'SELECT * FROM cp_escolas WHERE cp_id = $1 AND (cp_excluido = 0 OR cp_excluido IS NULL)';
-  
+
   db.query(query, [id], (err, results) => {
     if (err) {
       console.error('Erro ao buscar escola:', err);
       return res.status(500).json({ error: 'Erro ao buscar escola' });
     }
-    
+
     if (results.rows.length === 0) {
       return res.status(404).json({ error: 'Escola não encontrada' });
     }
-    
+
     res.json(results.rows[0]);
   });
 });
@@ -1121,23 +1120,23 @@ app.get('/escolas/:id', (req, res) => {
 // Buscar usuário por ID
 app.get('/usuarios/:id', (req, res) => {
   const { id } = req.params;
-  
+
   const query = 'SELECT * FROM cp_usuarios WHERE cp_id = $1 AND cp_excluido = 0';
-  
+
   db.query(query, [id], (err, results) => {
     if (err) {
       console.error('Erro ao buscar usuário:', err);
       return res.status(500).json({ error: 'Erro ao buscar usuário' });
     }
-    
+
     if (results.rows.length === 0) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
-    
+
     const user = results.rows[0];
     // Remover senha da resposta
     delete user.cp_password;
-    
+
     res.json(user);
   });
 });
@@ -1380,19 +1379,19 @@ app.put('/usuarios/:id', authenticateToken, async (req, res) => {
 // Deletar escola
 app.delete('/escolas/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
-  
+
   const query = 'UPDATE cp_escolas SET cp_excluido = 1 WHERE cp_id = $1';
-  
+
   db.query(query, [id], (err, result) => {
     if (err) {
       console.error('Erro ao deletar escola:', err);
       return res.status(500).json({ error: 'Erro ao deletar escola' });
     }
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Escola não encontrada' });
     }
-    
+
     res.json({ message: 'Escola deletada com sucesso' });
   });
 });
@@ -1400,19 +1399,19 @@ app.delete('/escolas/:id', authenticateToken, (req, res) => {
 // Deletar usuário
 app.delete('/usuarios/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
-  
+
   const query = 'UPDATE cp_usuarios SET cp_excluido = 1 WHERE cp_id = $1';
-  
+
   db.query(query, [id], (err, result) => {
     if (err) {
       console.error('Erro ao deletar usuário:', err);
       return res.status(500).json({ error: 'Erro ao deletar usuário' });
     }
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
-    
+
     res.json({ message: 'Usuário deletado com sucesso' });
   });
 });
@@ -1420,20 +1419,43 @@ app.delete('/usuarios/:id', authenticateToken, (req, res) => {
 // Deletar matrícula
 app.delete('/matriculas/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
-  
+
   const query = 'UPDATE cp_matriculas SET cp_excluido = 1 WHERE cp_id = $1';
-  
+
   db.query(query, [id], (err, result) => {
     if (err) {
       console.error('Erro ao deletar matrícula:', err);
       return res.status(500).json({ error: 'Erro ao deletar matrícula' });
     }
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Matrícula não encontrada' });
     }
-    
+
     res.json({ message: 'Matrícula deletada com sucesso' });
+  });
+});
+
+// Rota para buscar turmas para migração
+app.get('/turmas-migracao', (req, res) => {
+  const query = `
+    SELECT 
+      cp_tr_id, 
+      cp_tr_nome, 
+      cp_tr_data, 
+      cp_tr_id_professor, 
+      cp_tr_id_escola, 
+      cp_tr_curso_id 
+    FROM cp_turmas
+  `;
+
+  db.query(query, (err, result) => {
+    if (err) {
+      console.error('Erro ao buscar turmas para migração:', err);
+      res.status(500).send({ msg: 'Erro no servidor' });
+    } else {
+      res.send(result);
+    }
   });
 });
 

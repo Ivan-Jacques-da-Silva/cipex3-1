@@ -197,13 +197,10 @@ const CadastroTurmaModal = ({ turmaID }) => {
         // Atualizar turma existente
         response = await axios.put(`${API_BASE_URL}/turmas/${turmaID}`, {
                 cp_tr_nome: turmaData.cp_tr_nome,
-                cp_tr_descricao: turmaData.cp_tr_descricao,
+                cp_tr_data: turmaData.cp_tr_data,
                 cp_tr_id_escola: parseInt(turmaData.cp_tr_id_escola),
                 cp_tr_id_professor: parseInt(turmaData.cp_tr_id_professor),
-                cp_tr_curso_id: parseInt(turmaData.cp_tr_curso_id),
-                cp_tr_data_inicio: turmaData.cp_tr_data_inicio,
-                cp_tr_data_fim: turmaData.cp_tr_data_fim,
-                cp_tr_horario: turmaData.cp_tr_horario
+                cp_tr_curso_id: parseInt(turmaData.cp_tr_curso_id)
             }, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -215,13 +212,10 @@ const CadastroTurmaModal = ({ turmaID }) => {
         // Criar nova turma
          response = await axios.post(`${API_BASE_URL}/turmas`, {
                 cp_tr_nome: turmaData.cp_tr_nome,
-                cp_tr_descricao: turmaData.cp_tr_descricao,
+                cp_tr_data: turmaData.cp_tr_data,
                 cp_tr_id_escola: parseInt(turmaData.cp_tr_id_escola),
                 cp_tr_id_professor: parseInt(turmaData.cp_tr_id_professor),
-                cp_tr_curso_id: parseInt(turmaData.cp_tr_curso_id),
-                cp_tr_data_inicio: turmaData.cp_tr_data_inicio,
-                cp_tr_data_fim: turmaData.cp_tr_data_fim,
-                cp_tr_horario: turmaData.cp_tr_horario
+                cp_tr_curso_id: parseInt(turmaData.cp_tr_curso_id)
             }, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,

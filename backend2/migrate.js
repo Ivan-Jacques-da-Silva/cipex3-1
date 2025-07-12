@@ -163,24 +163,20 @@ async function migrateCursos() {
 // Função para migrar turmas
 async function migrateTurmas() {
   try {
-    const turmas = await fetchData("/turmas");
+    const turmas = await fetchData("/turmas-migracao");
 
     for (const turma of turmas) {
       await prisma.cp_turmas.create({
         data: {
           cp_tr_id: turma.cp_tr_id,
           cp_tr_nome: turma.cp_tr_nome || "",
+          cp_tr_data: convertDate(turma.cp_tr_data),
+          cp_tr_id_professor: turma.cp_tr_id_professor || 0,
+          cp_tr_id_escola: turma.cp_tr_id_escola || 0,
           cp_tr_curso_id: turma.cp_tr_curso_id || 0,
-          cp_tr_professor_id: turma.cp_tr_professor_id || 0,
-          cp_tr_escola_id: turma.cp_tr_escola_id || 0,
-          cp_tr_horario_inicio: turma.cp_tr_horario_inicio || "",
-          cp_tr_horario_fim: turma.cp_tr_horario_fim || "",
-          cp_tr_dias_semana: turma.cp_tr_dias_semana || "",
-          cp_tr_data_inicio: turma.cp_tr_data_inicio || "",
-          cp_tr_data_fim: turma.cp_tr_data_fim || "",
-          cp_tr_excluido: turma.cp_tr_excluido || 0,
-          created_at: convertDate(turma.created_at),
-          updated_at: convertDate(turma.updated_at),
+          cp_tr_excluido: 0,
+          created_at: new Date(),
+          updated_at: new Date(),
         },
       });
     }
