@@ -154,6 +154,30 @@ const CadastroUsuarioModal = ({ userId }) => {
                     }
                 });
 
+                // const userData = {
+                //     nome: formData.nome,
+                //     email: formData.email,
+                //     login: formData.login,
+                //     password: formData.password,
+                //     tipo_user: parseInt(formData.tipo_user),
+                //     rg: formData.rg,
+                //     cpf: formData.cpf,
+                //     datanascimento: formData.datanascimento,
+                //     estadocivil: formData.estadocivil,
+                //     cnpj: formData.cnpj,
+                //     ie: formData.ie,
+                //     whatsapp: formData.whatsapp,
+                //     telefone: formData.telefone,
+                //     empresaatuacao: formData.empresaatuacao,
+                //     profissao: formData.profissao,
+                //     end_cidade_estado: formData.end_cidade_estado,
+                //     end_rua: formData.end_rua,
+                //     end_num: formData.end_num,
+                //     end_cep: formData.end_cep,
+                //     descricao: formData.descricao,
+                //     escola_id: formData.escola_id || null,
+                //     turma_id: formData.turma_id || null
+                // };
 
                 const response = await axios.post(`${API_BASE_URL}/register`, formData, {
                     headers: { "Content-Type": "multipart/form-data" }, // Mantém para cadastro

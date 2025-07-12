@@ -37,7 +37,7 @@ const Turmas = () => {
         try {
             const response = await fetch(`${API_BASE_URL}/turmas`);
             const data = await response.json();
-            
+
             let turmasFiltradas = data.filter(turma => turma.cp_tr_id_escola == schoolId);
 
             if (userType === 4) {

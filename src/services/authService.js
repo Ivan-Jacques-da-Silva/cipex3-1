@@ -51,11 +51,13 @@ class AuthService {
         this.setToken(response.data.token);
         
         // Salvar dados do usuário
-        localStorage.setItem('userType', response.data.user.tipo);
-        localStorage.setItem('userName', response.data.user.nome);
-        localStorage.setItem('userId', response.data.user.id);
-        localStorage.setItem('userEmail', response.data.user.email);
-        localStorage.setItem('userLogin', response.data.user.login);
+        localStorage.setItem('userType', response.data.userType || response.data.user?.cp_tipo_user);
+        localStorage.setItem('userName', response.data.userName || response.data.user?.cp_nome);
+        localStorage.setItem('userId', response.data.userId || response.data.user?.cp_id);
+        localStorage.setItem('userEmail', response.data.user?.cp_email);
+        localStorage.setItem('userLogin', response.data.user?.cp_login);
+        localStorage.setItem('schoolId', response.data.schoolId || response.data.user?.cp_escola_id);
+        localStorage.setItem('turmaId', response.data.turmaID || response.data.user?.cp_turma_id);
         
         return response.data;
       }
