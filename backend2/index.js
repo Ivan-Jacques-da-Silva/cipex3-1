@@ -399,7 +399,7 @@ app.get('/turmas', (req, res) => {
       console.error('Erro ao buscar turmas:', err);
       return res.status(500).json({ error: 'Erro ao buscar turmas' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -420,7 +420,7 @@ app.get('/turmasComAlunos', (req, res) => {
       console.error('Erro ao buscar turmas com alunos:', err);
       return res.status(500).json({ error: 'Erro ao buscar turmas com alunos' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -432,8 +432,7 @@ app.get('/turmas/:turmaId/alunos', (req, res) => {
     SELECT 
       u.*
     FROM cp_usuarios u
-    INNER JOIN cp_turmas_alunos ta ON u.cp_id = ta.cp_aluno_id
-    WHERE ta.cp_turma_id = ? AND u.cp_tipo = 5
+    WHERE u.cp_turma_id = $1 AND u.cp_tipo_user = 5 AND u.cp_excluido = 0
   `;
   
   db.query(query, [turmaId], (err, results) => {
@@ -441,7 +440,7 @@ app.get('/turmas/:turmaId/alunos', (req, res) => {
       console.error('Erro ao buscar alunos da turma:', err);
       return res.status(500).json({ error: 'Erro ao buscar alunos da turma' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -449,7 +448,7 @@ app.get('/turmas/:turmaId/alunos', (req, res) => {
 app.get('/cursos/:cursoId', (req, res) => {
   const { cursoId } = req.params;
   
-  const query = 'SELECT * FROM cp_cursos WHERE cp_id = ?';
+  const query = 'SELECT * FROM cp_cursos WHERE cp_id = $1';
   
   db.query(query, [cursoId], (err, results) => {
     if (err) {
@@ -457,11 +456,11 @@ app.get('/cursos/:cursoId', (req, res) => {
       return res.status(500).json({ error: 'Erro ao buscar curso' });
     }
     
-    if (results.length === 0) {
+    if (results.rows.length === 0) {
       return res.status(404).json({ error: 'Curso não encontrado' });
     }
     
-    res.json(results[0]);
+    res.json(results.rows[0]);
   });
 });
 
@@ -473,7 +472,7 @@ app.post('/cursos/batch', (req, res) => {
     return res.json([]);
   }
   
-  const placeholders = cursoIds.map(() => '?').join(',');
+  const placeholders = cursoIds.map((_, index) => `$${index + 1}`).join(',');
   const query = `SELECT * FROM cp_cursos WHERE cp_id IN (${placeholders})`;
   
   db.query(query, cursoIds, (err, results) => {
@@ -481,7 +480,7 @@ app.post('/cursos/batch', (req, res) => {
       console.error('Erro ao buscar cursos em lote:', err);
       return res.status(500).json({ error: 'Erro ao buscar cursos em lote' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -489,7 +488,7 @@ app.post('/cursos/batch', (req, res) => {
 app.delete('/delete-turma/:turmaId', authenticateToken, (req, res) => {
   const { turmaId } = req.params;
   
-  const query = 'DELETE FROM cp_turmas WHERE cp_tr_id = ?';
+  const query = 'DELETE FROM cp_turmas WHERE cp_tr_id = $1';
   
   db.query(query, [turmaId], (err, result) => {
     if (err) {
@@ -497,7 +496,7 @@ app.delete('/delete-turma/:turmaId', authenticateToken, (req, res) => {
       return res.status(500).json({ error: 'Erro ao deletar turma' });
     }
     
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Turma não encontrada' });
     }
     
@@ -507,14 +506,14 @@ app.delete('/delete-turma/:turmaId', authenticateToken, (req, res) => {
 
 // 7. Rota para buscar professores
 app.get('/users-professores', (req, res) => {
-  const query = 'SELECT * FROM cp_usuarios WHERE cp_tipo = 4';
+  const query = 'SELECT * FROM cp_usuarios WHERE cp_tipo_user = 4 AND cp_excluido = 0';
   
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar professores:', err);
       return res.status(500).json({ error: 'Erro ao buscar professores' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -522,14 +521,14 @@ app.get('/users-professores', (req, res) => {
 app.get('/cp_turmas/professor/:professorId', (req, res) => {
   const { professorId } = req.params;
   
-  const query = 'SELECT * FROM cp_turmas WHERE cp_tr_id_professor = ?';
+  const query = 'SELECT * FROM cp_turmas WHERE cp_tr_id_professor = $1';
   
   db.query(query, [professorId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar turmas do professor:', err);
       return res.status(500).json({ error: 'Erro ao buscar turmas do professor' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -542,7 +541,7 @@ app.get('/materiais', (req, res) => {
       console.error('Erro ao buscar materiais:', err);
       return res.status(500).json({ error: 'Erro ao buscar materiais' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -562,7 +561,7 @@ app.get('/materiais/:turmaID', (req, res) => {
       cp_res_link, 
       cp_res_link_youtube 
     FROM cp_resumos 
-    WHERE cp_res_turma_id = ?
+    WHERE cp_res_turma_id = $1
   `;
   
   db.query(query, [turmaID], (err, results) => {
@@ -570,7 +569,7 @@ app.get('/materiais/:turmaID', (req, res) => {
       console.error('Erro ao buscar materiais da turma:', err);
       return res.status(500).json({ error: 'Erro ao buscar materiais da turma' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -581,7 +580,7 @@ app.post('/resumos', materialUpload.single('arquivo'), (req, res) => {
 
   const query = `
     INSERT INTO cp_resumos (cp_res_turma_id, cp_res_data, cp_res_hora, cp_res_resumo, cp_res_arquivo, cp_res_aula, cp_res_link, cp_res_link_youtube)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
   `;
   const values = [turmaId, data, hora, resumo, arquivo, aula, link, linkYoutube];
 
@@ -610,7 +609,7 @@ app.get('/resumos/:data/:turmaId', (req, res) => {
       cp_res_link, 
       cp_res_link_youtube 
     FROM cp_resumos 
-    WHERE cp_res_data = ? AND cp_res_turma_id = ?
+    WHERE cp_res_data = $1 AND cp_res_turma_id = $2
   `;
 
   db.query(query, [data, turmaId], (err, results) => {
@@ -618,7 +617,7 @@ app.get('/resumos/:data/:turmaId', (req, res) => {
       console.error('Erro ao buscar resumos:', err);
       return res.status(500).json({ error: 'Erro ao buscar resumos' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -626,7 +625,7 @@ app.get('/resumos/:data/:turmaId', (req, res) => {
 app.get('/curso-id-da-turma/:turmaId', (req, res) => {
   const { turmaId } = req.params;
   
-  const query = 'SELECT cp_tr_curso_id FROM cp_turmas WHERE cp_tr_id = ?';
+  const query = 'SELECT cp_tr_curso_id FROM cp_turmas WHERE cp_tr_id = $1';
   
   db.query(query, [turmaId], (err, results) => {
     if (err) {
@@ -634,11 +633,11 @@ app.get('/curso-id-da-turma/:turmaId', (req, res) => {
       return res.status(500).json({ error: 'Erro ao buscar curso ID da turma' });
     }
     
-    if (results.length === 0) {
+    if (results.rows.length === 0) {
       return res.status(404).json({ error: 'Turma não encontrada' });
     }
     
-    res.json(results[0]);
+    res.json(results.rows[0]);
   });
 });
 
@@ -646,14 +645,14 @@ app.get('/curso-id-da-turma/:turmaId', (req, res) => {
 app.get('/curso-material/:cursoId', (req, res) => {
   const { cursoId } = req.params;
   
-  const query = 'SELECT * FROM cp_materiais WHERE cp_mat_curso_id = ?';
+  const query = 'SELECT * FROM cp_materiais WHERE cp_mat_curso_id = $1';
   
   db.query(query, [cursoId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar material do curso:', err);
       return res.status(500).json({ error: 'Erro ao buscar material do curso' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -661,14 +660,14 @@ app.get('/curso-material/:cursoId', (req, res) => {
 app.get('/audios-curso/:cursoId', (req, res) => {
   const { cursoId } = req.params;
   
-  const query = 'SELECT * FROM cp_audios WHERE cp_audio_curso_id = ?';
+  const query = 'SELECT * FROM cp_audios WHERE cp_audio_curso_id = $1';
   
   db.query(query, [cursoId], (err, results) => {
     if (err) {
       console.error('Erro ao buscar áudios do curso:', err);
       return res.status(500).json({ error: 'Erro ao buscar áudios do curso' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -676,7 +675,7 @@ app.get('/audios-curso/:cursoId', (req, res) => {
 app.get('/audios-marcados/:userId', (req, res) => {
   const { userId } = req.params;
   
-  const query = 'SELECT cp_audio_id FROM cp_visualizacoes_audio WHERE cp_usuario_id = ?';
+  const query = 'SELECT cp_audio_id FROM cp_visualizacoes_audio WHERE cp_usuario_id = $1';
   
   db.query(query, [userId], (err, results) => {
     if (err) {
@@ -684,7 +683,7 @@ app.get('/audios-marcados/:userId', (req, res) => {
       return res.status(500).json({ error: 'Erro ao buscar áudios marcados' });
     }
     
-    const audioIds = results.map(row => row.cp_audio_id);
+    const audioIds = results.rows.map(row => row.cp_audio_id);
     res.json(audioIds);
   });
 });
@@ -694,7 +693,7 @@ app.post('/registrar-visualizacao', (req, res) => {
   const { userId, audioId } = req.body;
   
   // Verificar se já existe
-  const checkQuery = 'SELECT * FROM cp_visualizacoes_audio WHERE cp_usuario_id = ? AND cp_audio_id = ?';
+  const checkQuery = 'SELECT * FROM cp_visualizacoes_audio WHERE cp_usuario_id = $1 AND cp_audio_id = $2';
   
   db.query(checkQuery, [userId, audioId], (err, results) => {
     if (err) {
@@ -702,12 +701,12 @@ app.post('/registrar-visualizacao', (req, res) => {
       return res.status(500).json({ error: 'Erro ao verificar visualização' });
     }
     
-    if (results.length > 0) {
+    if (results.rows.length > 0) {
       return res.json({ message: 'Visualização já registrada' });
     }
     
     // Inserir nova visualização
-    const insertQuery = 'INSERT INTO cp_visualizacoes_audio (cp_usuario_id, cp_audio_id, cp_data_visualizacao) VALUES (?, ?, NOW())';
+    const insertQuery = 'INSERT INTO cp_visualizacoes_audio (cp_usuario_id, cp_audio_id, cp_data_visualizacao) VALUES ($1, $2, NOW())';
     
     db.query(insertQuery, [userId, audioId], (err, result) => {
       if (err) {
@@ -728,7 +727,7 @@ app.get('/cursos', (req, res) => {
       console.error('Erro ao buscar cursos:', err);
       return res.status(500).json({ error: 'Erro ao buscar cursos' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -736,7 +735,7 @@ app.get('/cursos', (req, res) => {
 app.delete('/delete-curso/:cursoId', authenticateToken, (req, res) => {
   const { cursoId } = req.params;
   
-  const query = 'DELETE FROM cp_cursos WHERE cp_curso_id = ?';
+  const query = 'DELETE FROM cp_cursos WHERE cp_curso_id = $1';
   
   db.query(query, [cursoId], (err, result) => {
     if (err) {
@@ -744,7 +743,7 @@ app.delete('/delete-curso/:cursoId', authenticateToken, (req, res) => {
       return res.status(500).json({ error: 'Erro ao deletar curso' });
     }
     
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Curso não encontrado' });
     }
     
@@ -761,7 +760,7 @@ app.get('/material-extra', (req, res) => {
       console.error('Erro ao buscar material extra:', err);
       return res.status(500).json({ error: 'Erro ao buscar material extra' });
     }
-    res.json(results);
+    res.json(results.rows);
   });
 });
 
@@ -769,7 +768,7 @@ app.get('/material-extra', (req, res) => {
 app.delete('/material-extra/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   
-  const query = 'DELETE FROM cp_materiais_extra WHERE cp_mat_extra_id = ?';
+  const query = 'DELETE FROM cp_materiais_extra WHERE cp_mat_extra_id = $1';
   
   db.query(query, [id], (err, result) => {
     if (err) {
@@ -777,7 +776,7 @@ app.delete('/material-extra/:id', authenticateToken, (req, res) => {
       return res.status(500).json({ error: 'Erro ao deletar material extra' });
     }
     
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Material não encontrado' });
     }
     
@@ -785,7 +784,62 @@ app.delete('/material-extra/:id', authenticateToken, (req, res) => {
   });
 });
 
-// 22. Rota proxy para download
+// 22. Rota para buscar todas as escolas
+app.get('/escolas', (req, res) => {
+  const query = 'SELECT * FROM cp_escolas WHERE cp_excluido = 0 OR cp_excluido IS NULL';
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar escolas:', err);
+      return res.status(500).json({ error: 'Erro ao buscar escolas' });
+    }
+    res.json(results.rows);
+  });
+});
+
+// 23. Rota para buscar todos os usuários
+app.get('/usuarios', (req, res) => {
+  const query = 'SELECT * FROM cp_usuarios WHERE cp_excluido = 0';
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar usuários:', err);
+      return res.status(500).json({ error: 'Erro ao buscar usuários' });
+    }
+    res.json(results.rows);
+  });
+});
+
+// 24. Rota para buscar turma específica por ID
+app.get('/turmas/:turmaId', (req, res) => {
+  const { turmaId } = req.params;
+  
+  const query = `
+    SELECT 
+      t.*,
+      u.cp_nome as nomeDoProfessor,
+      e.cp_nome as nomeDaEscola
+    FROM cp_turmas t
+    LEFT JOIN cp_usuarios u ON t.cp_tr_id_professor = u.cp_id
+    LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
+    WHERE t.cp_tr_id = $1
+  `;
+  
+  db.query(query, [turmaId], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar turma:', err);
+      return res.status(500).json({ error: 'Erro ao buscar turma' });
+    }
+    
+    if (results.rows.length === 0) {
+      return res.status(404).json({ error: 'Turma não encontrada' });
+    }
+    
+    res.json(results.rows[0]);
+  });
+});
+
+// 25. Rota proxy para download
 app.get('/proxy-download', (req, res) => {
   const { url } = req.query;
   
