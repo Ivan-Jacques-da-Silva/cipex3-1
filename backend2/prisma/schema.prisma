@@ -68,18 +68,16 @@ model cp_cursos {
 }
 
 model cp_turmas {
-  cp_tr_id              Int      @id @default(autoincrement())
-  cp_tr_nome            String
-  cp_tr_data            DateTime
-  cp_tr_id_professor    Int
-  cp_tr_id_escola       Int
-  cp_tr_curso_id        Int
-  cp_tr_excluido        Int      @default(0)
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  cp_tr_id           Int    @id
+  cp_tr_nome         String
+  cp_tr_data         DateTime
+  cp_tr_id_professor Int
+  cp_tr_id_escola    Int
+  cp_tr_curso_id     Int
 
   @@map("cp_turmas")
 }
+
 
 model cp_matriculas {
   cp_mt_id                      Int      @id @default(autoincrement())

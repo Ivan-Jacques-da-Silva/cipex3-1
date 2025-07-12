@@ -828,7 +828,7 @@ app.get('/usuarios', (req, res) => {
   db.query(query, (err, results) => {
     if (err) {
       console.error('Erro ao buscar usuários:', err);
-      return res.status(500.json({ error: 'Erro ao buscar usuários' });
+      return res.status(500).json({ error: 'Erro ao buscar usuários' });
     }
     res.json(results.rows);
   });
