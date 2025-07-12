@@ -404,7 +404,7 @@ app.post('/register', async (req, res) => {
     console.error('Erro ao processar cadastro:', error);
     return res.status(500).json({ error: 'Erro interno do servidor' });
   }
-});
+}); 
 
 // 1. Rota para buscar todas as turmas
 app.get('/turmas', (req, res) => {
