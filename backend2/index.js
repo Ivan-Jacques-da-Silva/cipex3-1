@@ -861,6 +861,557 @@ app.get('/proxy-download', (req, res) => {
   });
 });
 
+// ROTAS DE CADASTRO - POST
+
+// Cadastro de escola
+app.post('/escolas', authenticateToken, (req, res) => {
+  const {
+    cp_nome,
+    cp_telefone,
+    cp_email,
+    cp_endereco
+  } = req.body;
+
+  if (!cp_nome) {
+    return res.status(400).json({ error: 'Nome da escola é obrigatório' });
+  }
+
+  const query = `
+    INSERT INTO cp_escolas (cp_nome, cp_telefone, cp_email, cp_endereco)
+    VALUES ($1, $2, $3, $4) RETURNING *
+  `;
+
+  const values = [cp_nome, cp_telefone, cp_email, cp_endereco];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Erro ao cadastrar escola:', err);
+      return res.status(500).json({ error: 'Erro ao cadastrar escola' });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Escola cadastrada com sucesso',
+      escola: result.rows[0]
+    });
+  });
+});
+
+// Cadastro de curso
+app.post('/cursos', authenticateToken, (req, res) => {
+  const {
+    cp_nome,
+    cp_descricao,
+    cp_preco,
+    cp_duracao_meses
+  } = req.body;
+
+  if (!cp_nome) {
+    return res.status(400).json({ error: 'Nome do curso é obrigatório' });
+  }
+
+  const query = `
+    INSERT INTO cp_cursos (cp_nome, cp_descricao, cp_preco, cp_duracao_meses)
+    VALUES ($1, $2, $3, $4) RETURNING *
+  `;
+
+  const values = [cp_nome, cp_descricao, cp_preco || 0, cp_duracao_meses || 0];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Erro ao cadastrar curso:', err);
+      return res.status(500).json({ error: 'Erro ao cadastrar curso' });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Curso cadastrado com sucesso',
+      curso: result.rows[0]
+    });
+  });
+});
+
+// Cadastro de turma
+app.post('/turmas', authenticateToken, (req, res) => {
+  const {
+    cp_tr_nome,
+    cp_tr_descricao,
+    cp_tr_id_escola,
+    cp_tr_id_professor,
+    cp_tr_curso_id,
+    cp_tr_data_inicio,
+    cp_tr_data_fim,
+    cp_tr_horario
+  } = req.body;
+
+  if (!cp_tr_nome || !cp_tr_id_escola) {
+    return res.status(400).json({ error: 'Nome da turma e escola são obrigatórios' });
+  }
+
+  const query = `
+    INSERT INTO cp_turmas (
+      cp_tr_nome, cp_tr_descricao, cp_tr_id_escola, cp_tr_id_professor,
+      cp_tr_curso_id, cp_tr_data_inicio, cp_tr_data_fim, cp_tr_horario
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+  `;
+
+  const values = [
+    cp_tr_nome, cp_tr_descricao, cp_tr_id_escola, cp_tr_id_professor,
+    cp_tr_curso_id, cp_tr_data_inicio, cp_tr_data_fim, cp_tr_horario
+  ];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Erro ao cadastrar turma:', err);
+      return res.status(500).json({ error: 'Erro ao cadastrar turma' });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Turma cadastrada com sucesso',
+      turma: result.rows[0]
+    });
+  });
+});
+
+// Cadastro de matrícula
+app.post('/matriculas', authenticateToken, (req, res) => {
+  const {
+    cp_usuario_id,
+    cp_turma_id,
+    cp_data_matricula,
+    cp_valor,
+    cp_status,
+    cp_observacoes
+  } = req.body;
+
+  if (!cp_usuario_id || !cp_turma_id) {
+    return res.status(400).json({ error: 'Usuário e turma são obrigatórios' });
+  }
+
+  const query = `
+    INSERT INTO cp_matriculas (
+      cp_usuario_id, cp_turma_id, cp_data_matricula, cp_valor, cp_status, cp_observacoes
+    ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
+  `;
+
+  const values = [
+    cp_usuario_id, cp_turma_id, cp_data_matricula || new Date(),
+    cp_valor || 0, cp_status || 'ativa', cp_observacoes
+  ];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Erro ao cadastrar matrícula:', err);
+      return res.status(500).json({ error: 'Erro ao cadastrar matrícula' });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Matrícula cadastrada com sucesso',
+      matricula: result.rows[0]
+    });
+  });
+});
+
+// ROTAS DE BUSCA - GET
+
+// Buscar matrículas
+app.get('/matriculas', (req, res) => {
+  const query = `
+    SELECT 
+      m.*,
+      u.cp_nome as nome_usuario,
+      u.cp_email as email_usuario,
+      t.cp_tr_nome as nome_turma,
+      e.cp_nome as nome_escola
+    FROM cp_matriculas m
+    LEFT JOIN cp_usuarios u ON m.cp_usuario_id = u.cp_id
+    LEFT JOIN cp_turmas t ON m.cp_turma_id = t.cp_tr_id
+    LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
+    WHERE m.cp_excluido = 0 OR m.cp_excluido IS NULL
+  `;
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar matrículas:', err);
+      return res.status(500).json({ error: 'Erro ao buscar matrículas' });
+    }
+    res.json(results.rows);
+  });
+});
+
+// Buscar matrícula por ID
+app.get('/matriculas/:id', (req, res) => {
+  const { id } = req.params;
+  
+  const query = `
+    SELECT 
+      m.*,
+      u.cp_nome as nome_usuario,
+      u.cp_email as email_usuario,
+      t.cp_tr_nome as nome_turma,
+      e.cp_nome as nome_escola
+    FROM cp_matriculas m
+    LEFT JOIN cp_usuarios u ON m.cp_usuario_id = u.cp_id
+    LEFT JOIN cp_turmas t ON m.cp_turma_id = t.cp_tr_id
+    LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
+    WHERE m.cp_id = $1 AND (m.cp_excluido = 0 OR m.cp_excluido IS NULL)
+  `;
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar matrícula:', err);
+      return res.status(500).json({ error: 'Erro ao buscar matrícula' });
+    }
+    
+    if (results.rows.length === 0) {
+      return res.status(404).json({ error: 'Matrícula não encontrada' });
+    }
+    
+    res.json(results.rows[0]);
+  });
+});
+
+// Buscar escola por ID
+app.get('/escolas/:id', (req, res) => {
+  const { id } = req.params;
+  
+  const query = 'SELECT * FROM cp_escolas WHERE cp_id = $1 AND (cp_excluido = 0 OR cp_excluido IS NULL)';
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar escola:', err);
+      return res.status(500).json({ error: 'Erro ao buscar escola' });
+    }
+    
+    if (results.rows.length === 0) {
+      return res.status(404).json({ error: 'Escola não encontrada' });
+    }
+    
+    res.json(results.rows[0]);
+  });
+});
+
+// Buscar usuário por ID
+app.get('/usuarios/:id', (req, res) => {
+  const { id } = req.params;
+  
+  const query = 'SELECT * FROM cp_usuarios WHERE cp_id = $1 AND cp_excluido = 0';
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar usuário:', err);
+      return res.status(500).json({ error: 'Erro ao buscar usuário' });
+    }
+    
+    if (results.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+    
+    const user = results.rows[0];
+    // Remover senha da resposta
+    delete user.cp_password;
+    
+    res.json(user);
+  });
+});
+
+// ROTAS DE EDIÇÃO - PUT
+
+// Editar escola
+app.put('/escolas/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const {
+    cp_nome,
+    cp_telefone,
+    cp_email,
+    cp_endereco
+  } = req.body;
+
+  if (!cp_nome) {
+    return res.status(400).json({ error: 'Nome da escola é obrigatório' });
+  }
+
+  const query = `
+    UPDATE cp_escolas 
+    SET cp_nome = $1, cp_telefone = $2, cp_email = $3, cp_endereco = $4, updated_at = NOW()
+    WHERE cp_id = $5 RETURNING *
+  `;
+
+  const values = [cp_nome, cp_telefone, cp_email, cp_endereco, id];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Erro ao atualizar escola:', err);
+      return res.status(500).json({ error: 'Erro ao atualizar escola' });
+    }
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Escola não encontrada' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Escola atualizada com sucesso',
+      escola: result.rows[0]
+    });
+  });
+});
+
+// Editar curso
+app.put('/cursos/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const {
+    cp_nome,
+    cp_descricao,
+    cp_preco,
+    cp_duracao_meses
+  } = req.body;
+
+  if (!cp_nome) {
+    return res.status(400).json({ error: 'Nome do curso é obrigatório' });
+  }
+
+  const query = `
+    UPDATE cp_cursos 
+    SET cp_nome = $1, cp_descricao = $2, cp_preco = $3, cp_duracao_meses = $4, updated_at = NOW()
+    WHERE cp_id = $5 RETURNING *
+  `;
+
+  const values = [cp_nome, cp_descricao, cp_preco || 0, cp_duracao_meses || 0, id];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Erro ao atualizar curso:', err);
+      return res.status(500).json({ error: 'Erro ao atualizar curso' });
+    }
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Curso não encontrado' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Curso atualizado com sucesso',
+      curso: result.rows[0]
+    });
+  });
+});
+
+// Editar turma
+app.put('/turmas/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const {
+    cp_tr_nome,
+    cp_tr_descricao,
+    cp_tr_id_escola,
+    cp_tr_id_professor,
+    cp_tr_curso_id,
+    cp_tr_data_inicio,
+    cp_tr_data_fim,
+    cp_tr_horario
+  } = req.body;
+
+  if (!cp_tr_nome || !cp_tr_id_escola) {
+    return res.status(400).json({ error: 'Nome da turma e escola são obrigatórios' });
+  }
+
+  const query = `
+    UPDATE cp_turmas 
+    SET cp_tr_nome = $1, cp_tr_descricao = $2, cp_tr_id_escola = $3, cp_tr_id_professor = $4,
+        cp_tr_curso_id = $5, cp_tr_data_inicio = $6, cp_tr_data_fim = $7, cp_tr_horario = $8,
+        updated_at = NOW()
+    WHERE cp_tr_id = $9 RETURNING *
+  `;
+
+  const values = [
+    cp_tr_nome, cp_tr_descricao, cp_tr_id_escola, cp_tr_id_professor,
+    cp_tr_curso_id, cp_tr_data_inicio, cp_tr_data_fim, cp_tr_horario, id
+  ];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Erro ao atualizar turma:', err);
+      return res.status(500).json({ error: 'Erro ao atualizar turma' });
+    }
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Turma não encontrada' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Turma atualizada com sucesso',
+      turma: result.rows[0]
+    });
+  });
+});
+
+// Editar usuário
+app.put('/usuarios/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const {
+    cp_nome,
+    cp_email,
+    cp_login,
+    cp_password,
+    cp_tipo_user,
+    cp_rg,
+    cp_cpf,
+    cp_datanascimento,
+    cp_estadocivil,
+    cp_cnpj,
+    cp_ie,
+    cp_whatsapp,
+    cp_telefone,
+    cp_empresaatuacao,
+    cp_profissao,
+    cp_end_cidade_estado,
+    cp_end_rua,
+    cp_end_num,
+    cp_end_cep,
+    cp_descricao,
+    cp_escola_id,
+    cp_turma_id
+  } = req.body;
+
+  if (!cp_nome || !cp_email || !cp_login) {
+    return res.status(400).json({ error: 'Campos obrigatórios: nome, email e login' });
+  }
+
+  try {
+    let query;
+    let values;
+
+    if (cp_password) {
+      // Se senha foi fornecida, fazer hash e atualizar
+      const hashedPassword = await hashPassword(cp_password);
+      query = `
+        UPDATE cp_usuarios 
+        SET cp_nome = $1, cp_email = $2, cp_login = $3, cp_password = $4, cp_tipo_user = $5, 
+            cp_rg = $6, cp_cpf = $7, cp_datanascimento = $8, cp_estadocivil = $9, cp_cnpj = $10, 
+            cp_ie = $11, cp_whatsapp = $12, cp_telefone = $13, cp_empresaatuacao = $14, 
+            cp_profissao = $15, cp_end_cidade_estado = $16, cp_end_rua = $17, cp_end_num = $18, 
+            cp_end_cep = $19, cp_descricao = $20, cp_escola_id = $21, cp_turma_id = $22,
+            updated_at = NOW()
+        WHERE cp_id = $23 RETURNING *
+      `;
+      values = [
+        cp_nome, cp_email, cp_login, hashedPassword, cp_tipo_user, cp_rg, cp_cpf,
+        cp_datanascimento, cp_estadocivil, cp_cnpj, cp_ie, cp_whatsapp, cp_telefone,
+        cp_empresaatuacao, cp_profissao, cp_end_cidade_estado, cp_end_rua, cp_end_num,
+        cp_end_cep, cp_descricao, cp_escola_id, cp_turma_id, id
+      ];
+    } else {
+      // Se senha não foi fornecida, não atualizar
+      query = `
+        UPDATE cp_usuarios 
+        SET cp_nome = $1, cp_email = $2, cp_login = $3, cp_tipo_user = $4, 
+            cp_rg = $5, cp_cpf = $6, cp_datanascimento = $7, cp_estadocivil = $8, cp_cnpj = $9, 
+            cp_ie = $10, cp_whatsapp = $11, cp_telefone = $12, cp_empresaatuacao = $13, 
+            cp_profissao = $14, cp_end_cidade_estado = $15, cp_end_rua = $16, cp_end_num = $17, 
+            cp_end_cep = $18, cp_descricao = $19, cp_escola_id = $20, cp_turma_id = $21,
+            updated_at = NOW()
+        WHERE cp_id = $22 RETURNING *
+      `;
+      values = [
+        cp_nome, cp_email, cp_login, cp_tipo_user, cp_rg, cp_cpf,
+        cp_datanascimento, cp_estadocivil, cp_cnpj, cp_ie, cp_whatsapp, cp_telefone,
+        cp_empresaatuacao, cp_profissao, cp_end_cidade_estado, cp_end_rua, cp_end_num,
+        cp_end_cep, cp_descricao, cp_escola_id, cp_turma_id, id
+      ];
+    }
+
+    db.query(query, values, (err, result) => {
+      if (err) {
+        console.error('Erro ao atualizar usuário:', err);
+        return res.status(500).json({ error: 'Erro ao atualizar usuário' });
+      }
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Usuário não encontrado' });
+      }
+
+      const user = result.rows[0];
+      // Remover senha da resposta
+      delete user.cp_password;
+
+      res.json({
+        success: true,
+        message: 'Usuário atualizado com sucesso',
+        usuario: user
+      });
+    });
+
+  } catch (error) {
+    console.error('Erro ao processar atualização do usuário:', error);
+    return res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// ROTAS DE EXCLUSÃO - DELETE
+
+// Deletar escola
+app.delete('/escolas/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  
+  const query = 'UPDATE cp_escolas SET cp_excluido = 1 WHERE cp_id = $1';
+  
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      console.error('Erro ao deletar escola:', err);
+      return res.status(500).json({ error: 'Erro ao deletar escola' });
+    }
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Escola não encontrada' });
+    }
+    
+    res.json({ message: 'Escola deletada com sucesso' });
+  });
+});
+
+// Deletar usuário
+app.delete('/usuarios/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  
+  const query = 'UPDATE cp_usuarios SET cp_excluido = 1 WHERE cp_id = $1';
+  
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      console.error('Erro ao deletar usuário:', err);
+      return res.status(500).json({ error: 'Erro ao deletar usuário' });
+    }
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+    
+    res.json({ message: 'Usuário deletado com sucesso' });
+  });
+});
+
+// Deletar matrícula
+app.delete('/matriculas/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  
+  const query = 'UPDATE cp_matriculas SET cp_excluido = 1 WHERE cp_id = $1';
+  
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      console.error('Erro ao deletar matrícula:', err);
+      return res.status(500).json({ error: 'Erro ao deletar matrícula' });
+    }
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Matrícula não encontrada' });
+    }
+    
+    res.json({ message: 'Matrícula deletada com sucesso' });
+  });
+});
+
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend2 rodando na porta ${PORT}`);
