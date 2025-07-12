@@ -1454,7 +1454,7 @@ app.get('/turmas-migracao', (req, res) => {
       console.error('Erro ao buscar turmas para migração:', err);
       res.status(500).send({ msg: 'Erro no servidor' });
     } else {
-      res.send(result);
+      res.send(result.rows);
     }
   });
 });

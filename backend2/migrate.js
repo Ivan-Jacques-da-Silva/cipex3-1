@@ -165,25 +165,36 @@ async function migrateTurmas() {
   try {
     const turmas = await fetchData("/turmas-migracao");
 
-    for (const turma of turmas) {
-      await prisma.cp_turmas.create({
-        data: {
-          cp_tr_id: turma.cp_tr_id,
-          cp_tr_nome: turma.cp_tr_nome || "",
-          cp_tr_data: convertDate(turma.cp_tr_data),
-          cp_tr_id_professor: turma.cp_tr_id_professor || 0,
-          cp_tr_id_escola: turma.cp_tr_id_escola || 0,
-          cp_tr_curso_id: turma.cp_tr_curso_id || 0,
-          cp_tr_excluido: 0,
-          created_at: new Date(),
-          updated_at: new Date(),
-        },
-      });
+    if (!turmas || turmas.length === 0) {
+      console.log(`✓ Migradas 0 turmas`);
+      return;
     }
 
-    console.log(`✓ Migradas ${turmas.length} turmas`);
+    let migratedCount = 0;
+
+    for (const turma of turmas) {
+      try {
+        await prisma.cp_turmas.create({
+          data: {
+            cp_tr_id: turma.cp_tr_id,
+            cp_tr_nome: turma.cp_tr_nome || "",
+            cp_tr_data: turma.cp_tr_data && turma.cp_tr_data !== "0000-00-00"
+              ? convertDate(turma.cp_tr_data)
+              : new Date("2000-01-01"),
+            cp_tr_id_professor: turma.cp_tr_id_professor || 0,
+            cp_tr_id_escola: turma.cp_tr_id_escola || 0,
+            cp_tr_curso_id: turma.cp_tr_curso_id || 0,
+          },
+        });
+        migratedCount++;
+      } catch (turmaError) {
+        console.error(`Erro ao migrar turma ${turma.cp_tr_id}:`, turmaError.message);
+      }
+    }
+
+    console.log(`✓ Migradas ${migratedCount} turmas`);
   } catch (error) {
-    console.log(`✗ Erro ao migrar turmas`);
+    console.error(`✗ Erro ao migrar turmas:`, error.message);
   }
 }
 
