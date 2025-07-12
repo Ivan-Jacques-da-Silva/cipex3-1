@@ -25,20 +25,12 @@ const Usuarios = () => {
         try {
             const response = await fetch(`${API_BASE_URL}/matriculas`);
             const data = await response.json();
+            
+            // O backend2 já retorna as matrículas com os dados do usuário e turma
             setMatriculas(data);
-
-            const uniqueUserIds = [
-                ...new Set(data.map((matricula) => matricula.cp_mt_usuario)),
-            ];
-            const usersData = {};
-            for (const userId of uniqueUserIds) {
-                const responseUsuario = await fetch(
-                    `${API_BASE_URL}/usuarios/${userId}`
-                );
-                const usuarioData = await responseUsuario.json();
-                usersData[userId] = usuarioData.cp_nome;
-            }
-            setUsuarios(usersData);
+            
+            // Não precisamos fazer busca individual, os dados já vêm completos
+            setUsuarios({}); // Não é mais necessário
         } catch (error) {
             console.error("Erro ao buscar matrículas:", error);
         } finally {
@@ -48,8 +40,12 @@ const Usuarios = () => {
 
     const handleDelete = async (matriculaId) => {
         try {
+            const token = localStorage.getItem('token');
             await fetch(`${API_BASE_URL}/matriculas/${matriculaId}`, {
                 method: "DELETE",
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
             });
             fetchMatriculas();
         } catch (error) {
@@ -192,12 +188,13 @@ const Usuarios = () => {
                                                 <Icon icon="lucide:edit" />
                                             </Link>
 
-                                            <Link
-                                                to="#"
-                                                className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center"
+                                            <button
+                                                onClick={() => handleDelete(matricula.cp_id)}
+                                                className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center border-0"
+                                                style={{ cursor: 'pointer' }}
                                             >
                                                 <Icon icon="mingcute:delete-2-line" />
-                                            </Link>
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
