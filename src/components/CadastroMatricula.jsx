@@ -13,7 +13,6 @@ const CadastroMatricula = ({
     const [dadosUsuario, setDadosUsuario] = useState({});
     const [cursos, setCursos] = useState([]);
     const [escolas, setEscolas] = useState([]);
-    const [turmas, setTurmas] = useState([]);
     const [showAdditionalFields, setShowAdditionalFields] = useState(false);
     const [showParentFields, setShowParentFields] = useState(false);
     const [filteredUsuarios, setFilteredUsuarios] = useState([]);
@@ -35,7 +34,6 @@ const CadastroMatricula = ({
         cpfUsuario: "",
         valorCurso: "",
         cursoId: "",
-        turmaId: "",
         escolaId: "",
         dataNascimento: "",
         profissao: "",
@@ -69,7 +67,6 @@ const CadastroMatricula = ({
             cpfUsuario: "",
             valorCurso: "",
             cursoId: "",
-            turmaId: "",
             escolaId: "",
             dataNascimento: "",
             profissao: "",
@@ -121,7 +118,7 @@ const CadastroMatricula = ({
 
 
     const buscarDadosUsuario = (usuarioId) => {
-        axios.get(`${API_BASE_URL}/usuarios/${usuarioId}`)
+        axios.get(`${API_BASE_URL}/matricula/${usuarioId}`)
             .then(response => {
                 if (response.data) {
                     setDadosUsuario(response.data); // Atualiza os dados do usuário
@@ -129,16 +126,16 @@ const CadastroMatricula = ({
                     setMatriculaData(prevMatriculaData => ({
                         ...prevMatriculaData,
                         usuarioId: usuarioId, // Garante que o usuário seja identificado corretamente
-                        nomeUsuario: response.data.cp_nome || "",
-                        cpfUsuario: response.data.cp_cpf || "",
-                        dataNascimento: formatarData(response.data.cp_datanascimento) || "",
-                        profissao: response.data.cp_profissao || "",
-                        estadoCivil: response.data.cp_estadocivil || "Não informado",
-                        endereco: `${response.data.cp_end_cidade_estado}, ${response.data.cp_end_rua}, ${response.data.cp_end_num}` || "",
-                        whatsapp: response.data.cp_whatsapp || "",
-                        telefone: response.data.cp_telefone || "",
-                        email: response.data.cp_email || "",
-                        escolaId: response.data.cp_escola_id || "",
+                        nomeUsuario: response.data.nomeUsuario || "",
+                        cpfUsuario: response.data.cpfUsuario || "",
+                        dataNascimento: formatarData(response.data.dataNascimento) || "",
+                        profissao: response.data.profissao || "",
+                        estadoCivil: response.data.estadoCivil || "Não informado",
+                        endereco: response.data.endereco || "",
+                        whatsapp: response.data.whatsapp || "",
+                        telefone: response.data.telefone || "",
+                        email: response.data.email || "",
+                        escolaId: response.data.escolaId || "",
                     }));
 
                 } else {
@@ -170,12 +167,12 @@ const CadastroMatricula = ({
     useEffect(() => {
         if (!matriculaId) {
             axios
-                .get(`${API_BASE_URL}/usuarios`)
+                .get(`${API_BASE_URL}/buscarusermatricula`)
                 .then((response) => {
                     const schoolId = localStorage.getItem("schoolId");
 
                     const usuariosFiltrados = response.data.filter(usuario =>
-                        usuario.cp_excluido !== 1 && usuario.cp_escola_id == schoolId && usuario.cp_tipo_user === 5
+                        usuario.cp_excluido !== 1 && usuario.cp_escola_id == schoolId
                     );
 
                     setUsuarios(usuariosFiltrados);
@@ -313,20 +310,7 @@ const CadastroMatricula = ({
                     primeiraDataPagamento: formatarData(matriculaData.primeiraDataPagamento),
                 };
 
-                const token = localStorage.getItem('token');
-                const response = await axios.post(`${API_BASE_URL}/matriculas`, {
-                    cp_usuario_id: parseInt(matriculaData.usuarioId),
-                    cp_turma_id: parseInt(matriculaData.turmaId),
-                    cp_data_matricula: new Date().toISOString().split('T')[0],
-                    cp_valor: parseFloat(matriculaData.valorCurso) || 0,
-                    cp_status: matriculaData.status || 'ativa',
-                    cp_observacoes: matriculaData.observacoes || ''
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                const response = await axios.post(`${API_BASE_URL}/cadastrar-matricula`, createObj);
                 if (response.data?.msg === "Matrícula cadastrada com sucesso") {
                     toast.success("Matrícula cadastrada com sucesso");
                     limparCampos();
@@ -347,7 +331,7 @@ const CadastroMatricula = ({
         const selectedUserId = e.target.value;
 
         if (selectedUserId) {
-            axios.get(`${API_BASE_URL}/usuarios/${selectedUserId}`)
+            axios.get(`${API_BASE_URL}/buscarusermatricula/${selectedUserId}`)
                 .then(response => {
                     if (response.data) {
                         const usuario = response.data;
@@ -365,6 +349,7 @@ const CadastroMatricula = ({
                             whatsapp: usuario.cp_whatsapp,
                             telefone: usuario.cp_telefone,
                             email: usuario.cp_email,
+                            // escolaridade: usuario.cp_escolaridade,
                             escolaId: usuario.cp_escola_id
                         }));
                     } else {
@@ -452,7 +437,6 @@ const CadastroMatricula = ({
     useEffect(() => {
         fetchCursos();
         fetchEscolas();
-        fetchTurmas();
     }, []);
 
     const fetchCursos = async () => {
@@ -488,24 +472,6 @@ const CadastroMatricula = ({
         } catch (error) {
             console.error("Erro ao buscar escolas:", error);
             toast.error("Erro ao buscar escolas:");
-        }
-    };
-
-    const fetchTurmas = async () => {
-        try {
-            const response = await axios.get(`${API_BASE_URL}/turmas`);
-            if (Array.isArray(response.data)) {
-                setTurmas(response.data);
-            } else {
-                console.error(
-                    "Formato de resposta inválido para turmas:",
-                    response.data
-                );
-                toast.error("Formato de resposta inválido para turmas");
-            }
-        } catch (error) {
-            console.error("Erro ao buscar turmas:", error);
-            toast.error("Erro ao buscar turmas");
         }
     };
 
@@ -759,8 +725,8 @@ const CadastroMatricula = ({
                                             name="escolaId"
                                             value={
                                                 escolas.find(
-                                                    (escola) => escola.cp_id === dadosUsuario.escolaId
-                                                )?.cp_nome || ""
+                                                    (escola) => escola.cp_ec_id === dadosUsuario.escolaId
+                                                )?.cp_ec_nome || ""
                                             }
                                             className="form-control"
                                             placeholder="Escola"
@@ -884,31 +850,8 @@ const CadastroMatricula = ({
                                         >
                                             <option value="">Selecione o curso</option>
                                             {cursos.map((curso) => (
-                                                <option key={curso.cp_id} value={curso.cp_id}>
-                                                    {curso.cp_nome}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </Col>
-                                    <Col md={12}>
-                                        <label htmlFor="turmaId">Turma:</label>
-                                        <select
-                                            id="turmaId"
-                                            name="turmaId"
-                                            value={matriculaData.turmaId}
-                                            onChange={(e) =>
-                                                setMatriculaData({
-                                                    ...matriculaData,
-                                                    turmaId: e.target.value,
-                                                })
-                                            }
-                                            className="form-control"
-                                            required
-                                        >
-                                            <option value="">Selecione a turma</option>
-                                            {turmas.map((turma) => (
-                                                <option key={turma.cp_tr_id} value={turma.cp_tr_id}>
-                                                    {turma.cp_tr_nome}
+                                                <option key={curso.cp_curso_id} value={curso.cp_curso_id}>
+                                                    {curso.cp_nome_curso}
                                                 </option>
                                             ))}
                                         </select>
@@ -929,7 +872,7 @@ const CadastroMatricula = ({
                                         >
                                             <option value="">Selecione o nível do idioma</option>
                                             {defaultLanguageLevels.map((level) => (
-                                                <option key={level.id} value{level.nome}>
+                                                <option key={level.id} value={level.nome}>
                                                     {level.nome}
                                                 </option>
                                             ))}
