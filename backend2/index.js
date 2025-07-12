@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // JWT Secret - em produção, coloque isso no .env
 const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_super_segura_aqui';
@@ -24,16 +24,23 @@ const hashPassword = async (password) => {
 // Middleware de autenticação
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
+  console.log('=== MIDDLEWARE AUTH ===');
+  console.log('Authorization header:', authHeader);
+  
   const token = authHeader && authHeader.split(' ')[1];
+  console.log('Token extraído:', token ? token.substring(0, 50) + '...' : 'null');
 
   if (!token) {
+    console.log('Token não fornecido');
     return res.status(401).json({ error: 'Token de acesso requerido' });
   }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
+      console.log('Erro ao verificar token:', err.message);
       return res.status(403).json({ error: 'Token inválido' });
     }
+    console.log('Token válido, usuário:', user);
     req.user = user;
     next();
   });
@@ -46,18 +53,17 @@ app.use(express.urlencoded({ extended: true }));
 
 // Configuração do banco de dados PostgreSQL
 const db = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/cipex',
+  connectionString: process.env.DATABASE_URL,
   ssl: false
 });
 
-// Conectar ao banco
-db.connect((err, client, release) => {
+// Teste de conexão
+db.query('SELECT NOW()', (err, result) => {
   if (err) {
     console.error('Erro ao conectar ao banco de dados:', err);
-    return;
+  } else {
+    console.log('Conectado ao banco de dados PostgreSQL:', result.rows[0]);
   }
-  console.log('Conectado ao banco de dados PostgreSQL');
-  release();
 });
 
 // Configuração do multer para upload de arquivos
@@ -114,68 +120,151 @@ app.use('/MaterialExtra', express.static(path.join(__dirname, 'MaterialExtra')))
 app.post('/login', (req, res) => {
   const { login, password } = req.body;
 
+  console.log('=== DEBUG LOGIN ===');
+  console.log('Login recebido:', login);
+  console.log('Password recebido:', password);
+  console.log('Tipo do login:', typeof login);
+  console.log('Tipo da password:', typeof password);
+
   if (!login || !password) {
-    return res.status(400).json({ error: 'Login e senha são obrigatórios' });
+    return res.status(400).json({ 
+      success: false, 
+      msg: 'Login e senha são obrigatórios' 
+    });
   }
 
-  // Buscar usuário no banco de dados
-  const query = 'SELECT * FROM cp_usuarios WHERE cp_login = ? AND cp_excluido = 0';
+  // Buscar usuário no banco de dados - primeiro vamos listar todos os usuários para debug
+  const debugQuery = 'SELECT cp_id, cp_login, cp_nome FROM cp_usuarios WHERE cp_excluido = 0';
   
-  db.query(query, [login], async (err, results) => {
-    if (err) {
-      console.error('Erro ao buscar usuário:', err);
-      return res.status(500).json({ error: 'Erro interno do servidor' });
+  db.query(debugQuery, [], (debugErr, debugResults) => {
+    if (!debugErr) {
+      console.log('=== USUÁRIOS DISPONÍVEIS NO BANCO ===');
+      debugResults.rows.forEach(user => {
+        console.log(`ID: ${user.cp_id}, Login: "${user.cp_login}", Nome: "${user.cp_nome}"`);
+      });
     }
 
-    if (results.length === 0) {
-      return res.status(401).json({ error: 'Credenciais inválidas' });
-    }
-
-    const user = results[0];
-
-    try {
-      // Verificar senha
-      const isPasswordValid = await bcrypt.compare(password, user.cp_password);
-      
-      if (!isPasswordValid) {
-        return res.status(401).json({ error: 'Credenciais inválidas' });
+    // Agora fazer a busca real
+    const query = 'SELECT * FROM cp_usuarios WHERE cp_login = $1 AND cp_excluido = 0';
+    
+    console.log('Executando query:', query);
+    console.log('Parâmetro:', login);
+    
+    db.query(query, [login], async (err, results) => {
+      if (err) {
+        console.error('Erro ao buscar usuário:', err);
+        return res.status(500).json({ 
+          success: false, 
+          msg: 'Erro interno do servidor' 
+        });
       }
 
-      // Gerar token JWT
-      const token = jwt.sign(
-        { 
+      console.log('Resultados encontrados:', results.rows.length);
+      
+      if (results.rows.length === 0) {
+        console.log('Usuário não encontrado:', login);
+        
+        // Vamos tentar busca case-insensitive
+        const caseInsensitiveQuery = 'SELECT * FROM cp_usuarios WHERE LOWER(cp_login) = LOWER($1) AND cp_excluido = 0';
+        db.query(caseInsensitiveQuery, [login], (err2, results2) => {
+          if (!err2 && results2.rows.length > 0) {
+            console.log('Usuário encontrado com busca case-insensitive:', results2.rows[0].cp_login);
+          } else {
+            console.log('Usuário não encontrado mesmo com busca case-insensitive');
+          }
+        });
+        
+        return res.status(401).json({ 
+          success: false, 
+          msg: 'Credenciais inválidas' 
+        });
+      }
+
+      const user = results.rows[0];
+      console.log('Usuário encontrado:', {
+        id: user.cp_id,
+        login: user.cp_login,
+        nome: user.cp_nome,
+        email: user.cp_email,
+        senha_length: user.cp_password?.length,
+        senha_start: user.cp_password?.substring(0, 10)
+      });
+
+      try {
+        // Verificar senha - primeiro tenta bcrypt, depois senha direta
+        let isPasswordValid = false;
+        
+        if (user.cp_password && user.cp_password.startsWith('$2')) {
+          // Senha já está hasheada com bcrypt
+          console.log('Verificando senha com bcrypt...');
+          isPasswordValid = await bcrypt.compare(password, user.cp_password);
+        } else {
+          // Senha em texto plano ou outro formato
+          console.log('Verificando senha em texto plano...');
+          console.log('Password do usuário:', user.cp_password);
+          console.log('Password informada:', password);
+          isPasswordValid = (password === user.cp_password);
+        }
+        
+        console.log('Senha válida:', isPasswordValid);
+        
+        if (!isPasswordValid) {
+          return res.status(401).json({ 
+            success: false, 
+            msg: 'Credenciais inválidas' 
+          });
+        }
+
+        // Gerar token JWT
+        const tokenPayload = {
           id: user.cp_id,
           login: user.cp_login,
           nome: user.cp_nome,
           tipo: user.cp_tipo_user,
           escola_id: user.cp_escola_id,
           turma_id: user.cp_turma_id
-        },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
+        };
+        
+        console.log('Payload do token:', tokenPayload);
+        
+        const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
+        
+        console.log('Token gerado:', token.substring(0, 50) + '...');
 
-      // Retornar dados do usuário e token
-      res.json({
-        success: true,
-        message: 'Login realizado com sucesso',
-        token,
-        user: {
-          id: user.cp_id,
-          nome: user.cp_nome,
-          email: user.cp_email,
-          login: user.cp_login,
-          tipo: user.cp_tipo_user,
-          escola_id: user.cp_escola_id,
-          turma_id: user.cp_turma_id,
-          foto_perfil: user.cp_foto_perfil
-        }
-      });
+        // Retornar dados no formato esperado pelo frontend
+        const responseData = {
+          success: true,
+          msg: 'Usuário Logado com sucesso',
+          token,
+          userType: user.cp_tipo_user,
+          userName: user.cp_nome,
+          userId: user.cp_id,
+          userProfilePhoto: user.cp_foto_perfil,
+          schoolId: user.cp_escola_id,
+          turmaID: user.cp_turma_id,
+          user: {
+            id: user.cp_id,
+            nome: user.cp_nome,
+            email: user.cp_email,
+            login: user.cp_login,
+            tipo: user.cp_tipo_user,
+            escola_id: user.cp_escola_id,
+            turma_id: user.cp_turma_id,
+            foto_perfil: user.cp_foto_perfil
+          }
+        };
+        
+        console.log('Resposta de sucesso:', responseData);
+        res.json(responseData);
 
-    } catch (error) {
-      console.error('Erro ao verificar senha:', error);
-      return res.status(500).json({ error: 'Erro interno do servidor' });
-    }
+      } catch (error) {
+        console.error('Erro ao verificar senha:', error);
+        return res.status(500).json({ 
+          success: false, 
+          msg: 'Erro interno do servidor' 
+        });
+      }
+    });
   });
 });
 
@@ -189,7 +278,7 @@ app.get('/verify-token', authenticateToken, (req, res) => {
 
 // Rota para buscar dados do usuário logado
 app.get('/me', authenticateToken, (req, res) => {
-  const query = 'SELECT * FROM cp_usuarios WHERE cp_id = ? AND cp_excluido = 0';
+  const query = 'SELECT * FROM cp_usuarios WHERE cp_id = $1 AND cp_excluido = 0';
   
   db.query(query, [req.user.id], (err, results) => {
     if (err) {
@@ -197,11 +286,11 @@ app.get('/me', authenticateToken, (req, res) => {
       return res.status(500).json({ error: 'Erro ao buscar dados do usuário' });
     }
 
-    if (results.length === 0) {
+    if (results.rows.length === 0) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
 
-    const user = results[0];
+    const user = results.rows[0];
     // Remover senha da resposta
     delete user.cp_password;
     
@@ -242,14 +331,14 @@ app.post('/register', async (req, res) => {
 
   try {
     // Verificar se login já existe
-    const checkQuery = 'SELECT cp_id FROM cp_usuarios WHERE cp_login = ? OR cp_email = ?';
+    const checkQuery = 'SELECT cp_id FROM cp_usuarios WHERE cp_login = $1 OR cp_email = $2';
     db.query(checkQuery, [cp_login, cp_email], async (err, results) => {
       if (err) {
         console.error('Erro ao verificar usuário existente:', err);
         return res.status(500).json({ error: 'Erro interno do servidor' });
       }
 
-      if (results.length > 0) {
+      if (results.rows.length > 0) {
         return res.status(400).json({ error: 'Login ou email já cadastrado' });
       }
 
@@ -263,7 +352,7 @@ app.post('/register', async (req, res) => {
           cp_datanascimento, cp_estadocivil, cp_cnpj, cp_ie, cp_whatsapp, cp_telefone,
           cp_empresaatuacao, cp_profissao, cp_end_cidade_estado, cp_end_rua, cp_end_num,
           cp_end_cep, cp_descricao, cp_escola_id, cp_turma_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       `;
 
       const values = [

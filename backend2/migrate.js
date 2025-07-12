@@ -27,16 +27,13 @@ function convertDate(mysqlDate) {
   return new Date(mysqlDate);
 }
 
-
-
 // Função para extrair os dados dos usuários
 
-
 // Função para criptografar senha (usando MD5 como no sistema original)
-function encryptPassword(password) {
-  const crypto = require('crypto');
-  return crypto.createHash('md5').update(password).digest('hex');
-}
+// function encryptPassword(password) {
+//   const crypto = require("crypto");
+//   return crypto.createHash("md5").update(password).digest("hex");
+// }
 
 // Função para migrar usuários
 async function migrateUsuarios() {
@@ -48,14 +45,13 @@ async function migrateUsuarios() {
     let migratedCount = 0;
 
     function delay(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
+      return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     for (const user of users) {
       try {
-        const encryptedPassword = user.cp_password
-          ? encryptPassword(user.cp_password)
-          : encryptPassword("escolacipex@123"); // senha padrão se estiver vazia
+        // Usar a senha original sem criptografar
+        const originalPassword = user.cp_password || "escolacipex@123"; // senha padrão se estiver vazia
 
         await prisma.cp_usuarios.upsert({
           where: {
@@ -67,13 +63,14 @@ async function migrateUsuarios() {
             cp_nome: user.cp_nome || "",
             cp_email: user.cp_email || "",
             cp_login: user.cp_login || "",
-            cp_password: encryptPassword(user.cp_password || "escolacipex@123"),
+            cp_password: originalPassword,
             cp_tipo_user: parseInt(user.cp_tipo_user) || 5,
             cp_rg: user.cp_rg || "",
             cp_cpf: user.cp_cpf || "",
-            cp_datanascimento: user.cp_datanascimento && user.cp_datanascimento !== "0000-00-00"
-              ? new Date(user.cp_datanascimento)
-              : new Date("2000-01-01"),
+            cp_datanascimento:
+              user.cp_datanascimento && user.cp_datanascimento !== "0000-00-00"
+                ? new Date(user.cp_datanascimento)
+                : new Date("2000-01-01"),
 
             cp_telefone: user.cp_telefone || "",
             cp_escola_id: user.cp_escola_id || 1,
@@ -110,7 +107,6 @@ async function migrateUsuarios() {
     console.log(`✗ Erro ao migrar usuários`);
   }
 }
-
 
 // Função para migrar escolas
 async function migrateEscolas() {
@@ -423,8 +419,6 @@ async function migrateHistoricoChamadas() {
     console.log(`✗ Erro ao migrar chamadas`);
   }
 }
-
-
 
 // Função principal de migração
 async function runMigration() {
