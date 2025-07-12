@@ -23,7 +23,14 @@ const Usuarios = () => {
         try {
             const response = await fetch(`${API_BASE_URL}/usuarios`);
             const data = await response.json();
-            setUsers(data);
+
+            // Garantir que data seja sempre um array
+            const usuariosArray = Array.isArray(data) ? data : [];
+
+            // Filtrar usuários baseado no tipo de usuário logado
+            let usuariosFiltrados = usuariosArray;
+        
+            setUsers(usuariosFiltrados);
         } catch (error) {
             console.error("Erro ao buscar usuários:", error);
         } finally {

@@ -26,13 +26,35 @@ const Usuarios = () => {
             const response = await fetch(`${API_BASE_URL}/matriculas`);
             const data = await response.json();
             
-            // O backend2 já retorna as matrículas com os dados do usuário e turma
-            setMatriculas(data);
+            // Garantir que data seja sempre um array
+            const matriculasArray = Array.isArray(data) ? data : [];
             
-            // Não precisamos fazer busca individual, os dados já vêm completos
-            setUsuarios({}); // Não é mais necessário
+            // Filtrar por escola se necessário
+            const userType = parseInt(localStorage.getItem('userType'), 10) || 0;
+            const schoolId = localStorage.getItem("schoolId");
+            const userId = parseInt(localStorage.getItem("userId"), 10) || 0;
+            
+            let matriculasFiltradas = matriculasArray;
+            
+            // Filtrar por escola para usuários que não são super admin
+            if (userType !== 1 && schoolId) {
+                matriculasFiltradas = matriculasArray.filter(matricula => 
+                    matricula.escola_id == schoolId
+                );
+            }
+            
+            // Se for aluno (userType 5), mostrar apenas suas próprias matrículas
+            if (userType === 5) {
+                matriculasFiltradas = matriculasFiltradas.filter(matricula => 
+                    matricula.cp_usuario_id === userId
+                );
+            }
+            
+            setMatriculas(matriculasFiltradas);
+            setUsuarios({});
         } catch (error) {
             console.error("Erro ao buscar matrículas:", error);
+            setMatriculas([]); // Definir como array vazio em caso de erro
         } finally {
             setLoading(false);
         }

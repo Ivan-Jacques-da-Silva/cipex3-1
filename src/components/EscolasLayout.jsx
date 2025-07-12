@@ -25,9 +25,28 @@ const Escolas = () => {
         try {
             const response = await fetch(`${API_BASE_URL}/escolas`);
             const data = await response.json();
-            setEscolas(data);
+            
+            // Garantir que data seja sempre um array
+            const escolasArray = Array.isArray(data) ? data : [];
+            
+            // Aplicar filtros baseados no tipo de usuário
+            const userType = parseInt(localStorage.getItem('userType'), 10) || 0;
+            const schoolId = localStorage.getItem("schoolId");
+            
+            let escolasFiltradas = escolasArray;
+            
+            // Para usuários que não são super admin (userType !== 1), 
+            // mostrar apenas a escola a que pertencem
+            if (userType !== 1 && schoolId) {
+                escolasFiltradas = escolasArray.filter(escola => 
+                    (escola.cp_id || escola.cp_ec_id) == schoolId
+                );
+            }
+            
+            setEscolas(escolasFiltradas);
         } catch (error) {
             console.error("Erro ao buscar escolas:", error);
+            setEscolas([]); // Definir como array vazio em caso de erro
         } finally {
             setLoading(false);
         }

@@ -38,7 +38,10 @@ const Turmas = () => {
             const response = await fetch(`${API_BASE_URL}/turmas`);
             const data = await response.json();
 
-            let turmasFiltradas = data.filter(turma => turma.cp_tr_id_escola == schoolId);
+            // Garantir que data seja sempre um array
+            const turmasArray = Array.isArray(data) ? data : [];
+
+            let turmasFiltradas = turmasArray.filter(turma => turma.cp_tr_id_escola == schoolId);
 
             if (userType === 4) {
                 turmasFiltradas = turmasFiltradas.filter(turma => turma.nomeDoProfessor === userName);
