@@ -46,8 +46,23 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Configuração de CORS
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://0.0.0.0:3000',
+    'https://localhost:3000',
+    'https://0.0.0.0:3000',
+    /\.replit\.dev$/,
+    /\.replit\.com$/,
+    /\.replit\.co$/
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -115,6 +130,16 @@ app.use('/MaterialCurso', express.static(path.join(__dirname, 'MaterialCurso')))
 app.use('/MaterialExtra', express.static(path.join(__dirname, 'MaterialExtra')));
 
 // ROTAS DA API
+
+// Rota de teste
+app.get('/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Backend2 está funcionando!', 
+    timestamp: new Date().toISOString(),
+    port: PORT
+  });
+});
 
 // Rota de login
 app.post('/login', (req, res) => {
@@ -1414,5 +1439,6 @@ app.delete('/matriculas/:id', authenticateToken, (req, res) => {
 
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Backend2 rodando na porta ${PORT}`);
+  console.log(`Backend2 rodando na porta ${PORT} em 0.0.0.0`);
+  console.log(`Acesse em: http://0.0.0.0:${PORT}`);
 });
