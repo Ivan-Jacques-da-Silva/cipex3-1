@@ -98,10 +98,26 @@ const CadastroEscolaModal = ({ escolaId }) => {
         try {
             const modoEdicao = Boolean(escolaId);
             const resposta = modoEdicao
-                ? await axios.put(`${API_BASE_URL}/edit-escola/${escolaId}`, escolaFormatada, {
-                    headers: { "Content-Type": "application/json" },
-                })
-                : await axios.post(`${API_BASE_URL}/register-escola`, escolaFormatada);
+                ? await axios.put(`${API_BASE_URL}/escolas/${escolaId}`, {
+                cp_nome: escolaData.cp_ec_nome,
+                cp_telefone: escolaData.cp_ec_telefone,
+                cp_email: escolaData.cp_ec_email,
+                cp_endereco: escolaData.cp_ec_endereco
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                : await axios.post(`${API_BASE_URL}/escolas`, {
+                cp_nome: escolaData.cp_ec_nome,
+                cp_telefone: escolaData.cp_ec_telefone,
+                cp_email: escolaData.cp_ec_email,
+                cp_endereco: escolaData.cp_ec_endereco
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
 
             if (resposta.status === 200) {
                 toast.success(modoEdicao ? "Escola atualizada com sucesso!" : "Escola cadastrada com sucesso!");

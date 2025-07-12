@@ -66,8 +66,12 @@ const Turmas = () => {
 
     const handleDelete = async (turmaId) => {
         try {
+            const token = localStorage.getItem('token');
             await fetch(`${API_BASE_URL}/delete-turma/${turmaId}`, {
                 method: "DELETE",
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
             });
             fetchTurmas();
         } catch (error) {
@@ -114,9 +118,15 @@ const Turmas = () => {
         setTurmas(sortedTurmas);
     };
 
-    const filteredTurmas = turmas.filter((turma) =>
-        turma.cp_tr_nome.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredTurmas = turmas.filter((turma) => {
+        const nome = (turma.cp_tr_nome || "").toLowerCase();
+        const escola = (turma.nomeDaEscola || "").toLowerCase();
+        const professor = (turma.nomeDoProfessor || "").toLowerCase();
+
+        return nome.includes(searchTerm.toLowerCase()) ||
+               escola.includes(searchTerm.toLowerCase()) ||
+               professor.includes(searchTerm.toLowerCase());
+    });
 
     const totalPaginas = Math.ceil(filteredTurmas.length / turmasPerPage);
 

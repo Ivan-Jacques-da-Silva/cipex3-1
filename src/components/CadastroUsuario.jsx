@@ -42,7 +42,7 @@ const CadastroUsuarioModal = ({ userId }) => {
         cp_foto_perfil: null,
     });
     // const [errorMessage, setErrorMessage] = useState('');
-    // const [successMessage, setSuccessMessage] = useState('');
+    // [successMessage, setSuccessMessage] = useState('');
     const [isEmpresa, setIsEmpresa] = useState(false);
     const [userType, setUserType] = useState(null);
     const [showPassword, setShowPassword] = useState(false);

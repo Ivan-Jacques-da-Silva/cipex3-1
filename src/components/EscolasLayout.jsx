@@ -51,16 +51,16 @@ const Escolas = () => {
         }
     };
 
-    // const handleDelete = async (escolaId) => {
-    //     try {
-    //         await fetch(`${API_BASE_URL}/delete-escola/${escolaId}`, {
-    //             method: "DELETE",
-    //         });
-    //         fetchEscolas();
-    //     } catch (error) {
-    //         console.error("Erro ao excluir escola:", error);
-    //     }
-    // };
+    const handleDelete = async (escolaId) => {
+        try {
+            await fetch(`${API_BASE_URL}/escolas/${escolaId}`, {
+                method: "DELETE",
+            });
+            fetchEscolas();
+        } catch (error) {
+            console.error("Erro ao excluir escola:", error);
+        }
+    };
 
     const openEditModal = (escolaId) => {
         const escola = escolas.find((escola) => escola.cp_id === escolaId);
@@ -91,9 +91,15 @@ const Escolas = () => {
         setEscolas(sortedEscolas);
     };
 
-    const filteredEscolas = escolas.filter((escola) =>
-        escola.cp_nome.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredEscolas = escolas.filter((escola) => {
+        const nome = (escola.cp_nome || escola.cp_ec_nome || "").toLowerCase();
+        const telefone = (escola.cp_telefone || escola.cp_ec_telefone || "").toLowerCase();
+        const email = (escola.cp_email || escola.cp_ec_email || "").toLowerCase();
+
+        return nome.includes(searchTerm.toLowerCase()) ||
+               telefone.includes(searchTerm.toLowerCase()) ||
+               email.includes(searchTerm.toLowerCase());
+    });
 
     const totalPaginas = Math.ceil(filteredEscolas.length / escolasPerPage);
 
@@ -176,26 +182,27 @@ const Escolas = () => {
                                 </tr>
                             ) : (
                                 currentEscolas.map((escola) => (
-                                    <tr key={escola.cp_id}>
-                                        <td>{escola.cp_nome}</td>
-                                        <td>{escola.cp_telefone}</td>
+                                    <tr key={escola.cp_id || escola.cp_ec_id}>
+                                        <td>{escola.cp_nome || escola.cp_ec_nome}</td>
+                                        <td>{escola.cp_telefone || escola.cp_ec_telefone}</td>
                                         <td>
                                             {escola.created_at ? new Date(escola.created_at).toLocaleDateString(
                                                 "pt-BR"
                                             ) : "-"}
                                         </td>
-                                        <td>{escola.cp_endereco}</td>
+                                        <td>{escola.cp_endereco || escola.cp_ec_endereco}</td>
                                         <td className="text-center">
                                             <Link
-                                                to={`/cadastro-escola/${escola.cp_id}`}
+                                                to={`/cadastro-escola/${escola.cp_id || escola.cp_ec_id}`}
                                                 className="w-32-px h-32-px me-8 bg-success-focus text-success-main rounded-circle d-inline-flex align-items-center justify-content-center"
                                             >
                                                 <Icon icon="lucide:edit" />
                                             </Link>
 
                                             <button
-                                                onClick={() => abrirModalExclusao(escola.cp_id)}
-                                                className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center"
+                                                onClick={() => handleDelete(escola.cp_id || escola.cp_ec_id)}
+                                                className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center border-0"
+                                                style={{ cursor: 'pointer' }}
                                             >
                                                 <Icon icon="mingcute:delete-2-line" />
                                             </button>
