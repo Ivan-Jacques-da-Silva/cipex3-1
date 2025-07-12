@@ -21,7 +21,7 @@ const Usuarios = () => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/users`);
+            const response = await fetch(`${API_BASE_URL}/usuarios`);
             const data = await response.json();
             setUsers(data);
         } catch (error) {
@@ -33,7 +33,7 @@ const Usuarios = () => {
 
     const handleDelete = async (userId) => {
         try {
-            await fetch(`${API_BASE_URL}/delete-user/${userId}`, {
+            await fetch(`${API_BASE_URL}/usuarios/${userId}`, {
                 method: "DELETE",
             });
             fetchUsers();

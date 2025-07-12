@@ -33,10 +33,10 @@ const Usuarios = () => {
             const usersData = {};
             for (const userId of uniqueUserIds) {
                 const responseUsuario = await fetch(
-                    `${API_BASE_URL}/matricula/${userId}`
+                    `${API_BASE_URL}/usuarios/${userId}`
                 );
                 const usuarioData = await responseUsuario.json();
-                usersData[userId] = usuarioData.nomeUsuario;
+                usersData[userId] = usuarioData.cp_nome;
             }
             setUsuarios(usersData);
         } catch (error) {
@@ -48,7 +48,7 @@ const Usuarios = () => {
 
     const handleDelete = async (matriculaId) => {
         try {
-            await fetch(`${API_BASE_URL}/excluir-matricula/${matriculaId}`, {
+            await fetch(`${API_BASE_URL}/matriculas/${matriculaId}`, {
                 method: "DELETE",
             });
             fetchMatriculas();
@@ -58,7 +58,7 @@ const Usuarios = () => {
     };
 
     const openEditModal = (matriculaId) => {
-        const matricula = matriculas.find((m) => m.cp_mt_id === matriculaId);
+        const matricula = matriculas.find((m) => m.cp_id === matriculaId);
         setMatriculaDataToEdit(matricula);
         setShowModal(true);
     };
@@ -69,9 +69,9 @@ const Usuarios = () => {
     };
 
     const filteredMatriculas = matriculas.filter((matricula) => {
-        const nomeUsuario = usuarios[matricula.cp_mt_usuario]?.toLowerCase() || "";
+        const nomeUsuario = matricula.nome_usuario?.toLowerCase() || "";
 
-        const statusMatches = !statusFilter || matricula.cp_status_matricula?.toLowerCase() === statusFilter.toLowerCase();
+        const statusMatches = !statusFilter || matricula.cp_status?.toLowerCase() === statusFilter.toLowerCase();
 
         return nomeUsuario.includes(searchTerm.toLowerCase()) && statusMatches;
     });
@@ -146,7 +146,7 @@ const Usuarios = () => {
                             <tr>
                                 <th>Aluno</th>
                                 <th>Status</th>
-                                <th>Parcelas</th>
+                                <th>Turma</th>
                                 <th className="text-center">Ação</th>
                             </tr>
                         </thead>
@@ -159,25 +159,25 @@ const Usuarios = () => {
                                 </tr>
                             ) : (
                                 currentMatriculas.map((matricula) => (
-                                    <tr key={matricula.cp_mt_id}>
-                                        <td>{usuarios[matricula.cp_mt_usuario]}</td>
+                                    <tr key={matricula.cp_id}>
+                                        <td>{matricula.nome_usuario}</td>
                                         <td className="text-left">
                                             <span
-                                                className={`badge ${matricula.cp_status_matricula === "ativo"
+                                                className={`badge ${matricula.cp_status === "ativa"
                                                     ? "bg-success-focus text-success-600 border border-success-main"
-                                                    : matricula.cp_status_matricula === "cancelado"
+                                                    : matricula.cp_status === "cancelada"
                                                         ? "bg-danger-focus text-danger-600 border border-danger-main"
-                                                        : matricula.cp_status_matricula === "trancado"
+                                                        : matricula.cp_status === "trancada"
                                                             ? "bg-warning-focus text-warning-600 border border-warning-main"
-                                                            : matricula.cp_status_matricula === "concluído"
+                                                            : matricula.cp_status === "concluida"
                                                                 ? "bg-primary-focus text-primary-600 border border-primary-main"
                                                                 : "bg-neutral-200 text-neutral-600 border border-neutral-400"
                                                     } px-24 py-4 radius-4 fw-medium text-sm`}
                                             >
-                                                {matricula.cp_status_matricula}
+                                                {matricula.cp_status}
                                             </span>
                                         </td>
-                                        <td>{`${matricula.cp_mt_parcelas_pagas}/${matricula.cp_mt_quantas_parcelas}`}</td>
+                                        <td>{matricula.nome_turma}</td>
                                         <td className="text-center">
                                             {/* <Link
                                                 to="#"
@@ -186,7 +186,7 @@ const Usuarios = () => {
                                                 <Icon icon="iconamoon:eye-light" />
                                             </Link> */}
                                             <Link
-                                                to={`/cadastro-matricula/${matricula.cp_mt_id}`}
+                                                to={`/cadastro-matricula/${matricula.cp_id}`}
                                                 className="w-32-px h-32-px me-8 bg-success-focus text-success-main rounded-circle d-inline-flex align-items-center justify-content-center"
                                             >
                                                 <Icon icon="lucide:edit" />

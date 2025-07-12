@@ -146,9 +146,9 @@ const Turmas = () => {
                 cursoNome: curso.cp_nome_curso,
             }));
 
-            const responseAlunos = await axios.get(`${API_BASE_URL}/escola/alunos/${turma.cp_tr_id_escola}`);
+            const responseAlunos = await axios.get(`${API_BASE_URL}/turmas/${turma.cp_tr_id}/alunos`);
             const alunos = responseAlunos.data;
-            const alunosDaTurma = alunos.filter(aluno => aluno.cp_turma_id === turma.cp_tr_id);
+            const alunosDaTurma = alunos;
             setAlunosFiltrados(alunosDaTurma);
         } catch (error) {
             console.error("Erro ao buscar curso ou alunos:", error);

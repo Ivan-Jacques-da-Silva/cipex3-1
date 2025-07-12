@@ -41,7 +41,7 @@ const Escolas = () => {
     // Função para confirmar a exclusão
     const handleConfirmDelete = async () => {
         try {
-            await fetch(`${API_BASE_URL}/delete-escola/${idEscolaParaExcluir}`, {
+            await fetch(`${API_BASE_URL}/escolas/${idEscolaParaExcluir}`, {
                 method: "DELETE",
             });
             setMostrarModalExclusao(false);
@@ -63,7 +63,7 @@ const Escolas = () => {
     // };
 
     const openEditModal = (escolaId) => {
-        const escola = escolas.find((escola) => escola.cp_ec_id === escolaId);
+        const escola = escolas.find((escola) => escola.cp_id === escolaId);
         setEscolaDataToEdit(escola);
         setShowModal(true);
     };
@@ -82,8 +82,8 @@ const Escolas = () => {
         const newDirection = sortDirection === "asc" ? "desc" : "asc";
         setSortDirection(newDirection);
         const sortedEscolas = [...escolas].sort((a, b) => {
-            const nomeA = a.cp_ec_nome.toLowerCase();
-            const nomeB = b.cp_ec_nome.toLowerCase();
+            const nomeA = a.cp_nome.toLowerCase();
+            const nomeB = b.cp_nome.toLowerCase();
             return newDirection === "asc"
                 ? nomeA.localeCompare(nomeB)
                 : nomeB.localeCompare(nomeA);
@@ -92,7 +92,7 @@ const Escolas = () => {
     };
 
     const filteredEscolas = escolas.filter((escola) =>
-        escola.cp_ec_nome.toLowerCase().includes(searchTerm.toLowerCase())
+        escola.cp_nome.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const totalPaginas = Math.ceil(filteredEscolas.length / escolasPerPage);
@@ -176,25 +176,25 @@ const Escolas = () => {
                                 </tr>
                             ) : (
                                 currentEscolas.map((escola) => (
-                                    <tr key={escola.cp_ec_id}>
-                                        <td>{escola.cp_ec_nome}</td>
-                                        <td>{escola.cp_ec_responsavel}</td>
+                                    <tr key={escola.cp_id}>
+                                        <td>{escola.cp_nome}</td>
+                                        <td>{escola.cp_telefone}</td>
                                         <td>
-                                            {new Date(escola.cp_ec_data_cadastro).toLocaleDateString(
+                                            {escola.created_at ? new Date(escola.created_at).toLocaleDateString(
                                                 "pt-BR"
-                                            )}
+                                            ) : "-"}
                                         </td>
-                                        <td>{escola.cp_ec_endereco_cidade}</td>
+                                        <td>{escola.cp_endereco}</td>
                                         <td className="text-center">
                                             <Link
-                                                to={`/cadastro-escola/${escola.cp_ec_id}`}
+                                                to={`/cadastro-escola/${escola.cp_id}`}
                                                 className="w-32-px h-32-px me-8 bg-success-focus text-success-main rounded-circle d-inline-flex align-items-center justify-content-center"
                                             >
                                                 <Icon icon="lucide:edit" />
                                             </Link>
 
                                             <button
-                                                onClick={() => abrirModalExclusao(escola.cp_ec_id)}
+                                                onClick={() => abrirModalExclusao(escola.cp_id)}
                                                 className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center"
                                             >
                                                 <Icon icon="mingcute:delete-2-line" />
