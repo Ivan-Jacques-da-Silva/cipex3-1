@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { Link } from "react-router-dom";
@@ -25,33 +26,32 @@ const Usuarios = () => {
         try {
             const response = await fetch(`${API_BASE_URL}/matriculas`);
             const data = await response.json();
-            
+
             // Garantir que data seja sempre um array
             const matriculasArray = Array.isArray(data) ? data : [];
-            
+
             // Filtrar por escola se necessário
             const userType = parseInt(localStorage.getItem('userType'), 10) || 0;
             const schoolId = localStorage.getItem("schoolId");
             const userId = parseInt(localStorage.getItem("userId"), 10) || 0;
-            
+
             let matriculasFiltradas = matriculasArray;
-            
+
             // Filtrar por escola para usuários que não são super admin
             if (userType !== 1 && schoolId) {
                 matriculasFiltradas = matriculasArray.filter(matricula => 
-                    matricula.escola_id == schoolId
+                    matricula.cp_mt_escola_id == schoolId
                 );
             }
-            
+
             // Se for aluno (userType 5), mostrar apenas suas próprias matrículas
             if (userType === 5) {
                 matriculasFiltradas = matriculasFiltradas.filter(matricula => 
-                    matricula.cp_usuario_id === userId
+                    matricula.cp_mt_usuario_id === userId
                 );
             }
-            
+
             setMatriculas(matriculasFiltradas);
-            setUsuarios({});
         } catch (error) {
             console.error("Erro ao buscar matrículas:", error);
             setMatriculas([]); // Definir como array vazio em caso de erro
@@ -76,7 +76,7 @@ const Usuarios = () => {
     };
 
     const openEditModal = (matriculaId) => {
-        const matricula = matriculas.find((m) => m.cp_id === matriculaId);
+        const matricula = matriculas.find((m) => m.cp_mt_id === matriculaId);
         setMatriculaDataToEdit(matricula);
         setShowModal(true);
     };
@@ -91,7 +91,10 @@ const Usuarios = () => {
 
         const statusMatches = !statusFilter || matricula.cp_status?.toLowerCase() === statusFilter.toLowerCase();
 
-        return nomeUsuario.includes(searchTerm.toLowerCase()) && statusMatches;
+        // Filtrar apenas matrículas que têm turma associada
+        const hasTurma = matricula.nome_turma && matricula.nome_turma.trim() !== '';
+
+        return nomeUsuario.includes(searchTerm.toLowerCase()) && statusMatches && hasTurma;
     });
 
     const totalPaginas = Math.ceil(filteredMatriculas.length / matriculasPerPage);
@@ -150,7 +153,6 @@ const Usuarios = () => {
                 </div>
                 <Link
                     to="/cadastro-matricula"
-                    onClick={() => setShowModal(true)}
                     className="btn btn-primary text-sm btn-sm px-12 py-12 radius-8 d-flex align-items-center gap-2"
                 >
                     <Icon icon="ic:baseline-plus" className="icon text-xl line-height-1" />
@@ -164,6 +166,7 @@ const Usuarios = () => {
                             <tr>
                                 <th>Aluno</th>
                                 <th>Status</th>
+                                <th>Parcelas</th>
                                 <th>Turma</th>
                                 <th className="text-center">Ação</th>
                             </tr>
@@ -171,47 +174,42 @@ const Usuarios = () => {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan="4" className="text-center">
+                                    <td colSpan="5" className="text-center">
                                         Carregando...
                                     </td>
                                 </tr>
                             ) : (
                                 currentMatriculas.map((matricula) => (
-                                    <tr key={matricula.cp_id}>
+                                    <tr key={matricula.cp_mt_id}>
                                         <td>{matricula.nome_usuario}</td>
                                         <td className="text-left">
                                             <span
-                                                className={`badge ${matricula.cp_status === "ativa"
+                                                className={`badge ${matricula.cp_status === "ativo"
                                                     ? "bg-success-focus text-success-600 border border-success-main"
-                                                    : matricula.cp_status === "cancelada"
+                                                    : matricula.cp_status === "cancelado"
                                                         ? "bg-danger-focus text-danger-600 border border-danger-main"
-                                                        : matricula.cp_status === "trancada"
+                                                        : matricula.cp_status === "trancado"
                                                             ? "bg-warning-focus text-warning-600 border border-warning-main"
-                                                            : matricula.cp_status === "concluida"
-                                                                ? "bg-primary-focus text-primary-600 border border-primary-main"
+                                                            : matricula.cp_status === "concluido"
+                                                                ? "bg-primary-600 text-white border border-primary-main"
                                                                 : "bg-neutral-200 text-neutral-600 border border-neutral-400"
                                                     } px-24 py-4 radius-4 fw-medium text-sm`}
                                             >
                                                 {matricula.cp_status}
                                             </span>
                                         </td>
-                                        <td>{matricula.nome_turma}</td>
+                                        <td>{`${matricula.cp_mt_parcelas_pagas || 0}/${matricula.cp_mt_quantas_parcelas || 0}`}</td>
+                                        <td>{matricula.nome_turma || '-'}</td>
                                         <td className="text-center">
-                                            {/* <Link
-                                                to="#"
-                                                className="w-32-px h-32-px me-8 bg-primary-light text-primary-600 rounded-circle d-inline-flex align-items-center justify-content-center"
-                                            >
-                                                <Icon icon="iconamoon:eye-light" />
-                                            </Link> */}
                                             <Link
-                                                to={`/cadastro-matricula/${matricula.cp_id}`}
+                                                to={`/cadastro-matricula/${matricula.cp_mt_id}`}
                                                 className="w-32-px h-32-px me-8 bg-success-focus text-success-main rounded-circle d-inline-flex align-items-center justify-content-center"
                                             >
                                                 <Icon icon="lucide:edit" />
                                             </Link>
 
                                             <button
-                                                onClick={() => handleDelete(matricula.cp_id)}
+                                                onClick={() => handleDelete(matricula.cp_mt_id)}
                                                 className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center border-0"
                                                 style={{ cursor: 'pointer' }}
                                             >

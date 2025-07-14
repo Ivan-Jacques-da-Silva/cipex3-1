@@ -111,26 +111,47 @@ async function migrateUsuarios() {
 // Função para migrar escolas
 async function migrateEscolas() {
   try {
-    const escolas = await fetchData("/escolas");
+    const escolas = await fetchData("/escolas-migracao");
 
-    for (const escola of escolas) {
-      await prisma.cp_escolas.create({
-        data: {
-          cp_ec_id: escola.cp_ec_id,
-          cp_ec_nome: escola.cp_ec_nome || "",
-          cp_ec_telefone: escola.cp_ec_telefone || "",
-          cp_ec_email: escola.cp_ec_email || "",
-          cp_ec_endereco: escola.cp_ec_endereco || "",
-          cp_ec_excluido: escola.cp_ec_excluido || 0,
-          created_at: convertDate(escola.created_at),
-          updated_at: convertDate(escola.updated_at),
-        },
-      });
+    if (!escolas || escolas.length === 0) {
+      console.log(`✓ Migradas 0 escolas`);
+      return;
     }
 
-    console.log(`✓ Migradas ${escolas.length} escolas`);
+    let migratedCount = 0;
+
+    for (const escola of escolas) {
+      try {
+        await prisma.cp_escolas.create({
+          data: {
+            cp_ec_id: escola.cp_ec_id,
+            cp_ec_nome: escola.cp_ec_nome || "",
+            cp_ec_data_cadastro: escola.cp_ec_data_cadastro && escola.cp_ec_data_cadastro !== "0000-00-00" 
+              ? new Date(escola.cp_ec_data_cadastro) 
+              : null,
+            cp_ec_responsavel: escola.cp_ec_responsavel,
+            cp_ec_endereco_rua: escola.cp_ec_endereco_rua,
+            cp_ec_endereco_numero: escola.cp_ec_endereco_numero,
+            cp_ec_endereco_cidade: escola.cp_ec_endereco_cidade,
+            cp_ec_endereco_bairro: escola.cp_ec_endereco_bairro,
+            cp_ec_endereco_estado: escola.cp_ec_endereco_estado,
+            cp_ec_excluido: parseInt(escola.cp_ec_excluido) || 0,
+            cp_ec_descricao: escola.cp_ec_descricao,
+            cp_ec_telefone: null, // campo não existe na rota de migração
+            cp_ec_email: null, // campo não existe na rota de migração
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+        migratedCount++;
+      } catch (escolaError) {
+        console.error(`Erro ao migrar escola ${escola.cp_ec_id}:`, escolaError.message);
+      }
+    }
+
+    console.log(`✓ Migradas ${migratedCount} escolas`);
   } catch (error) {
-    console.log(`✗ Erro ao migrar escolas`);
+    console.error(`✗ Erro ao migrar escolas:`, error.message);
   }
 }
 
@@ -178,9 +199,10 @@ async function migrateTurmas() {
           data: {
             cp_tr_id: turma.cp_tr_id,
             cp_tr_nome: turma.cp_tr_nome || "",
-            cp_tr_data: turma.cp_tr_data && turma.cp_tr_data !== "0000-00-00"
-              ? convertDate(turma.cp_tr_data)
-              : new Date("2000-01-01"),
+            cp_tr_data:
+              turma.cp_tr_data && turma.cp_tr_data !== "0000-00-00"
+                ? convertDate(turma.cp_tr_data)
+                : new Date("2000-01-01"),
             cp_tr_id_professor: turma.cp_tr_id_professor || 0,
             cp_tr_id_escola: turma.cp_tr_id_escola || 0,
             cp_tr_curso_id: turma.cp_tr_curso_id || 0,
@@ -188,7 +210,10 @@ async function migrateTurmas() {
         });
         migratedCount++;
       } catch (turmaError) {
-        console.error(`Erro ao migrar turma ${turma.cp_tr_id}:`, turmaError.message);
+        console.error(
+          `Erro ao migrar turma ${turma.cp_tr_id}:`,
+          turmaError.message,
+        );
       }
     }
 
@@ -201,44 +226,61 @@ async function migrateTurmas() {
 // Função para migrar matrículas
 async function migrateMatriculas() {
   try {
-    const matriculas = await fetchData("/matriculas");
+    const matriculas = await fetchData("/matriculas-migracao");
 
-    for (const matricula of matriculas) {
-      await prisma.cp_matriculas.create({
-        data: {
-          cp_mt_id: matricula.cp_mt_id,
-          cp_mt_curso: parseInt(matricula.cp_mt_curso) || 0,
-          cp_mt_usuario_id: matricula.cp_mt_usuario_id || 0,
-          cp_mt_escola_id: matricula.cp_mt_escola_id || 0,
-          cp_mt_nome_usuario: matricula.cp_mt_nome_usuario || "",
-          cp_mt_cpf_usuario: matricula.cp_mt_cpf_usuario || "",
-          cp_mt_valor_curso: parseFloat(matricula.cp_mt_valor_curso) || 0,
-          cp_mt_numero_parcelas: parseInt(matricula.cp_mt_numero_parcelas) || 0,
-          cp_mt_primeira_data_pagamento:
-            matricula.cp_mt_primeira_data_pagamento || "",
-          cp_mt_status: matricula.cp_mt_status || "",
-          cp_mt_nivel_idioma: matricula.cp_mt_nivel_idioma,
-          cp_mt_horario_inicio: matricula.cp_mt_horario_inicio,
-          cp_mt_horario_fim: matricula.cp_mt_horario_fim,
-          cp_mt_local_nascimento: matricula.cp_mt_local_nascimento,
-          cp_mt_escolaridade: matricula.cp_mt_escolaridade,
-          cp_mt_rede_social: matricula.cp_mt_rede_social,
-          cp_mt_nome_pai: matricula.cp_mt_nome_pai,
-          cp_mt_contato_pai: matricula.cp_mt_contato_pai,
-          cp_mt_nome_mae: matricula.cp_mt_nome_mae,
-          cp_mt_contato_mae: matricula.cp_mt_contato_mae,
-          cp_mt_nome_emergencia: matricula.cp_mt_nome_emergencia,
-          cp_mt_contato_emergencia: matricula.cp_mt_contato_emergencia,
-          cp_mt_excluido: matricula.cp_mt_excluido || 0,
-          created_at: convertDate(matricula.created_at),
-          updated_at: convertDate(matricula.updated_at),
-        },
-      });
+    if (!matriculas || matriculas.length === 0) {
+      console.log(`✓ Migradas 0 matrículas`);
+      return;
     }
 
-    console.log(`✓ Migradas ${matriculas.length} matrículas`);
+    let migratedCount = 0;
+
+    for (const matricula of matriculas) {
+      try {
+        await prisma.cp_matriculas.create({
+          data: {
+            cp_mt_id: matricula.cp_mt_id,
+            cp_mt_curso: parseInt(matricula.cp_mt_curso) || 0,
+            cp_mt_usuario_id: parseInt(matricula.cp_mt_usuario) || 0,
+            cp_mt_escola_id: parseInt(matricula.cp_mt_escola) || 0,
+            cp_mt_nome_usuario: matricula.cp_mt_nome_usuario || "",
+            cp_mt_cpf_usuario: matricula.cp_mt_cadastro_usuario || "",
+            cp_mt_valor_curso: parseFloat(matricula.cp_mt_valor_curso) || 0,
+            cp_mt_numero_parcelas: parseInt(matricula.cp_mt_quantas_parcelas) || 0,
+            cp_mt_parcelas_pagas: parseInt(matricula.cp_mt_parcelas_pagas) || 0,
+            cp_mt_primeira_data_pagamento: matricula.cp_mt_primeira_parcela || "",
+            cp_mt_status: matricula.cp_status_matricula || "",
+            cp_mt_nivel_idioma: matricula.cp_mt_nivel,
+            cp_mt_horario_inicio: matricula.cp_mt_horario_inicio,
+            cp_mt_horario_fim: matricula.cp_mt_horario_fim,
+            cp_mt_local_nascimento: matricula.cp_mt_local_nascimento,
+            cp_mt_escolaridade: matricula.cp_mt_escolaridade,
+            cp_mt_rede_social: matricula.cp_mt_rede_social,
+            cp_mt_nome_pai: matricula.cp_mt_nome_pai,
+            cp_mt_contato_pai: matricula.cp_mt_contato_pai,
+            cp_mt_nome_mae: matricula.cp_mt_nome_mae,
+            cp_mt_contato_mae: matricula.cp_mt_contato_mae,
+            cp_mt_nome_emergencia: null,
+            cp_mt_contato_emergencia: null,
+            cp_mt_tipo_pagamento: matricula.cp_mt_tipo_pagamento,
+            cp_mt_dias_semana: matricula.cp_mt_dias_semana,
+            cp_mt_excluido: parseInt(matricula.cp_mt_excluido) || 0,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+        migratedCount++;
+      } catch (matriculaError) {
+        console.error(
+          `Erro ao migrar matrícula ${matricula.cp_mt_id}:`,
+          matriculaError.message,
+        );
+      }
+    }
+
+    console.log(`✓ Migradas ${migratedCount} matrículas`);
   } catch (error) {
-    console.log(`✗ Erro ao migrar matrículas`);
+    console.error(`✗ Erro ao migrar matrículas:`, error.message);
   }
 }
 
