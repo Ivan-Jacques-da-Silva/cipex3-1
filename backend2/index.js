@@ -1636,6 +1636,29 @@ app.get("/matriculas-migracao", (req, res) => {
   });
 });
 
+// Rota para buscar cursos para migração
+app.get("/cursos-migracao", (req, res) => {
+  const query = `
+    SELECT 
+      cp_id_curso as cp_curso_id, 
+      cp_nome_curso, 
+      cp_youtube_link_curso, 
+      cp_pdf1_curso, 
+      cp_pdf2_curso, 
+      cp_pdf3_curso 
+    FROM cp_cursos
+  `;
+
+  db.query(query, (err, result) => {
+    if (err) {
+      console.error("Erro ao buscar cursos para migração:", err);
+      res.status(500).send({ msg: "Erro no servidor" });
+    } else {
+      res.send(result.rows);
+    }
+  });
+});
+
 // Iniciar servidor
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Backend2 rodando na porta ${PORT} em 0.0.0.0`);

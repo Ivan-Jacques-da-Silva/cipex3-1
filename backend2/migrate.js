@@ -126,8 +126,8 @@ async function migrateEscolas() {
           data: {
             cp_ec_id: escola.cp_ec_id,
             cp_ec_nome: escola.cp_ec_nome || "",
-            cp_ec_data_cadastro: escola.cp_ec_data_cadastro && escola.cp_ec_data_cadastro !== "0000-00-00" 
-              ? new Date(escola.cp_ec_data_cadastro) 
+            cp_ec_data_cadastro: escola.cp_ec_data_cadastro && escola.cp_ec_data_cadastro !== "0000-00-00"
+              ? new Date(escola.cp_ec_data_cadastro)
               : null,
             cp_ec_responsavel: escola.cp_ec_responsavel,
             cp_ec_endereco_rua: escola.cp_ec_endereco_rua,
@@ -158,26 +158,39 @@ async function migrateEscolas() {
 // Função para migrar cursos
 async function migrateCursos() {
   try {
-    const cursos = await fetchData("/cursos");
+    const cursos = await fetchData("/cursos-migracao");
 
-    for (const curso of cursos) {
-      await prisma.cp_cursos.create({
-        data: {
-          cp_id_curso: curso.cp_id_curso,
-          cp_nome_curso: curso.cp_nome_curso || "",
-          cp_descricao_curso: curso.cp_descricao_curso,
-          cp_preco_curso: parseFloat(curso.cp_preco_curso) || 0,
-          cp_duracao_meses: parseInt(curso.cp_duracao_meses) || 0,
-          cp_excluido: curso.cp_excluido || 0,
-          created_at: convertDate(curso.created_at),
-          updated_at: convertDate(curso.updated_at),
-        },
-      });
+    if (!cursos || cursos.length === 0) {
+      console.log(`✓ Migrados 0 cursos`);
+      return;
     }
 
-    console.log(`✓ Migrados ${cursos.length} cursos`);
+    let migratedCount = 0;
+
+    for (const curso of cursos) {
+      try {
+        await prisma.cp_cursos.create({
+          data: {
+            cp_id_curso: curso.cp_curso_id,
+            cp_nome_curso: curso.cp_nome_curso || "",
+            cp_youtube_link_curso: curso.cp_youtube_link_curso || null,
+            cp_pdf1_curso: curso.cp_pdf1_curso || null,
+            cp_pdf2_curso: curso.cp_pdf2_curso || null,
+            cp_pdf3_curso: curso.cp_pdf3_curso || null,
+            cp_descricao_curso: null, // campo não existe na rota
+            cp_preco_curso: 0.0, // valor padrão
+            cp_duracao_meses: 1, // valor padrão
+          },
+        });
+        migratedCount++;
+      } catch (cursoError) {
+        console.error(`Erro ao migrar curso ${curso.cp_curso_id}:`, cursoError.message);
+      }
+    }
+
+    console.log(`✓ Migrados ${migratedCount} cursos`);
   } catch (error) {
-    console.log(`✗ Erro ao migrar cursos`);
+    console.error(`✗ Erro ao migrar cursos:`, error.message);
   }
 }
 

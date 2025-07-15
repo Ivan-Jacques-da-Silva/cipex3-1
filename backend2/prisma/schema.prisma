@@ -62,16 +62,15 @@ model cp_escolas {
 }
 
 model cp_cursos {
-  cp_id_curso          Int      @id @default(autoincrement())
-  cp_nome_curso        String
-  cp_descricao_curso   String?
-  cp_preco_curso       Float
-  cp_duracao_meses     Int
-  cp_excluido          Int      @default(0)
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
-
-  @@map("cp_cursos")
+  cp_id_curso            Int      @id @default(autoincrement())
+  cp_nome_curso          String
+  cp_youtube_link_curso  String?
+  cp_pdf1_curso          String?
+  cp_pdf2_curso          String?
+  cp_pdf3_curso          String?
+  cp_descricao_curso     String?
+  cp_preco_curso         Float
+  cp_duracao_meses       Int
 }
 
 model cp_turmas {

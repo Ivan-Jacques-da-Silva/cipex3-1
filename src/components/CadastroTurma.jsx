@@ -29,6 +29,7 @@ const CadastroTurmaModal = ({ turmaID }) => {
   const [alunosFiltrados, setAlunosFiltrados] = useState([]);
   const [mensagem, setMensagem] = useState({ tipo: "", texto: "" });
   const [showModal, setShowModal] = useState(false);
+  
 
 
   const handleShowModal = () => setShowModal(true);
@@ -66,7 +67,7 @@ const CadastroTurmaModal = ({ turmaID }) => {
 
   // Reordena os alunos sempre que a lista ou os alunos selecionados mudarem
   useEffect(() => {
-    if (alunosPorEscola.length) {
+    if (alunosPorEscola.length && Array.isArray(turmaData.cp_tr_alunos)) {
       const alunosOrdenados = [...alunosPorEscola].sort((a, b) => {
         const aNaTurma = turmaData.cp_tr_alunos.includes(a.cp_id) ? -1 : 1;
         const bNaTurma = turmaData.cp_tr_alunos.includes(b.cp_id) ? -1 : 1;
@@ -74,7 +75,7 @@ const CadastroTurmaModal = ({ turmaID }) => {
       });
       setAlunosFiltrados(alunosOrdenados);
     }
-  }, [turmaData.cp_tr_alunos, alunosPorEscola]);
+  }, [alunosPorEscola.length, turmaData.cp_tr_alunos.length]);
 
 
   const fetchAlunosPorEscola = async (escolaId) => {
@@ -92,6 +93,8 @@ const CadastroTurmaModal = ({ turmaID }) => {
       console.error("Erro ao buscar os alunos da escola:", error);
     }
   };
+
+  
 
   // Efeito separado para carregar dados da turma quando cursos estiverem carregados
   useEffect(() => {
@@ -168,6 +171,8 @@ const CadastroTurmaModal = ({ turmaID }) => {
 
           setTurmaData(turmaDataAtualizada);
 
+          
+
           // Busca os alunos da escola e os alunos da turma
           if (dadosTurma.cp_tr_id_escola) {
             try {
@@ -202,14 +207,8 @@ const CadastroTurmaModal = ({ turmaID }) => {
                 cp_tr_alunos: alunosIDs
               }));
 
-              // Ordenação: alunos da turma primeiro, depois os outros
-              const alunosOrdenados = [...todosAlunosEscola].sort((a, b) => {
-                const aNaTurma = alunosIDs.includes(a.cp_id) ? -1 : 1;
-                const bNaTurma = alunosIDs.includes(b.cp_id) ? -1 : 1;
-                return aNaTurma - bNaTurma || a.cp_nome.localeCompare(b.cp_nome);
-              });
-
-              setAlunosFiltrados(alunosOrdenados);
+              // Não definir alunosFiltrados aqui para evitar loop
+              // O useEffect de reordenação cuidará disso
 
             } catch (errorAlunos) {
               console.error("Erro ao buscar alunos:", errorAlunos);
@@ -280,11 +279,21 @@ const CadastroTurmaModal = ({ turmaID }) => {
     const searchValue = normalizeString(e.target.value);
     setSearchTerm(e.target.value);
 
-    const alunosFiltrados = alunosPorEscola.filter(aluno =>
-      normalizeString(aluno.cp_nome).includes(searchValue)
-    );
-
-    setAlunosFiltrados(alunosFiltrados);
+    if (searchValue === "") {
+      // Se não há busca, reordena normalmente
+      const alunosOrdenados = [...alunosPorEscola].sort((a, b) => {
+        const aNaTurma = turmaData.cp_tr_alunos.includes(a.cp_id) ? -1 : 1;
+        const bNaTurma = turmaData.cp_tr_alunos.includes(b.cp_id) ? -1 : 1;
+        return aNaTurma - bNaTurma || a.cp_nome.localeCompare(b.cp_nome);
+      });
+      setAlunosFiltrados(alunosOrdenados);
+    } else {
+      // Filtra pelos termos de busca
+      const alunosFiltrados = alunosPorEscola.filter(aluno =>
+        normalizeString(aluno.cp_nome).includes(searchValue)
+      );
+      setAlunosFiltrados(alunosFiltrados);
+    }
   };
 
 
@@ -298,6 +307,8 @@ const CadastroTurmaModal = ({ turmaID }) => {
       return { ...prevData, cp_tr_alunos: updatedAlunos };
     });
   };
+
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -509,38 +520,102 @@ const CadastroTurmaModal = ({ turmaID }) => {
                   </Col>
 
                   <Col md={12}>
-                    <div className="table-container">
-                      {alunosFiltrados.length > 0 ? (
+                    {alunosFiltrados.length > 0 ? (
+                      <div>
+                        {/* Alunos Selecionados */}
+                        {Array.isArray(turmaData.cp_tr_alunos) && turmaData.cp_tr_alunos.length > 0 && (
+                          <div className="mb-3">
+                            <small className="text-dark fw-medium mb-2 d-block">Alunos Selecionados ({turmaData.cp_tr_alunos.length})</small>
+                            <div className="d-flex flex-wrap gap-2 mb-3">
+                              {alunosFiltrados
+                                .filter(aluno => turmaData.cp_tr_alunos.includes(aluno.cp_id))
+                                .map((aluno) => (
+                                  <span 
+                                    key={aluno.cp_id} 
+                                    className="badge bg-primary px-3 py-2 d-flex align-items-center gap-2"
+                                    style={{ fontSize: '12px', cursor: 'pointer' }}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleCheckboxChange({ target: { checked: false } }, aluno.cp_id);
+                                    }}
+                                  >
+                                    {aluno.cp_nome}
+                                    <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
+                                  </span>
+                                ))}
+                            </div>
+                            <hr />
+                          </div>
+                        )}
+
+                        {/* Lista de Todos os Alunos */}
                         <div className="table-responsive overflow-auto" style={{ maxHeight: "300px" }}>
-                          <Table striped bordered hover className="overflow-auto">
+                          <Table striped bordered hover>
                             <thead>
                               <tr>
-                                <th>#</th>
+                                <th width="50">#</th>
                                 <th>Nome</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {alunosFiltrados.map((aluno) => (
-                                <tr key={aluno.cp_id}>
-                                  <td>
-                                    <Form.Check
-                                      type="checkbox"
-                                      checked={Array.isArray(turmaData.cp_tr_alunos) && turmaData.cp_tr_alunos.includes(aluno.cp_id)}
-                                      onChange={(e) => handleCheckboxChange(e, aluno.cp_id)}
-                                    />
-
+                              {/* Alunos Selecionados Primeiro */}
+                              {alunosFiltrados
+                                .filter(aluno => Array.isArray(turmaData.cp_tr_alunos) && turmaData.cp_tr_alunos.includes(aluno.cp_id))
+                                .map((aluno) => (
+                                  <tr key={aluno.cp_id} className="table-primary">
+                                    <td>
+                                      <Form.Check
+                                        type="checkbox"
+                                        checked={true}
+                                        onChange={(e) => handleCheckboxChange(e, aluno.cp_id)}
+                                      />
+                                    </td>
+                                    <td>
+                                      <strong>{aluno.cp_nome}</strong>
+                                    </td>
+                                  </tr>
+                                ))}
+                              
+                              {/* Separador se houver alunos selecionados e não selecionados */}
+                              {Array.isArray(turmaData.cp_tr_alunos) && 
+                               turmaData.cp_tr_alunos.length > 0 && 
+                               alunosFiltrados.some(aluno => !turmaData.cp_tr_alunos.includes(aluno.cp_id)) && (
+                                <tr>
+                                  <td colSpan="2" className="text-center bg-light">
+                                    <small className="text-muted">--- Outros Alunos ---</small>
                                   </td>
-                                  <td>{aluno.cp_nome}</td>
                                 </tr>
-                              ))}
+                              )}
+                              
+                              {/* Alunos Não Selecionados */}
+                              {alunosFiltrados
+                                .filter(aluno => !Array.isArray(turmaData.cp_tr_alunos) || !turmaData.cp_tr_alunos.includes(aluno.cp_id))
+                                .map((aluno) => (
+                                  <tr key={aluno.cp_id}>
+                                    <td>
+                                      <Form.Check
+                                        type="checkbox"
+                                        checked={false}
+                                        onChange={(e) => handleCheckboxChange(e, aluno.cp_id)}
+                                      />
+                                    </td>
+                                    <td>{aluno.cp_nome}</td>
+                                  </tr>
+                                ))}
                             </tbody>
                           </Table>
                         </div>
-                      ) : (
-                        <p className="text-muted">Nenhum aluno encontrado. Selecione uma escola!</p>
-                      )}
-
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-muted">
+                          {turmaData.cp_tr_id_escola 
+                            ? "Nenhum aluno encontrado para esta escola." 
+                            : "Selecione uma escola para ver os alunos."
+                          }
+                        </p>
+                      </div>
+                    )}
                   </Col>
                 </Row>
               </div>
@@ -554,6 +629,7 @@ const CadastroTurmaModal = ({ turmaID }) => {
           </Button>
         </div>
       </form>
+      {/* Modal de confirmação */}
       <Modal show={showModal} onHide={handleCloseModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Confirmar Cadastro</Modal.Title>
@@ -570,6 +646,8 @@ const CadastroTurmaModal = ({ turmaID }) => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      
 
     </div>
   );
