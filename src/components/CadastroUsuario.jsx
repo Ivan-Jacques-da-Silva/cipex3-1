@@ -67,10 +67,9 @@ const CadastroUsuarioModal = ({ userId }) => {
 
     useEffect(() => {
         if (userId) {
-            axios.get(`${API_BASE_URL}/users/${userId}`)
+            axios.get(`${API_BASE_URL}/usuarios/${userId}`)
                 .then(response => {
                     setUserData(response.data); // Preenche o formulário
-
                 })
                 .catch(error => {
                     console.error("Erro ao buscar usuário:", error);
@@ -131,8 +130,11 @@ const CadastroUsuarioModal = ({ userId }) => {
         try {
             if (userId) {
                 // Modo de edição: Enviar como JSON, pois o backend espera JSON e não FormData
-                const response = await axios.put(`${API_BASE_URL}/edit-user/${userId}`, userData, {
-                    headers: { "Content-Type": "application/json" }, // Alterado para JSON
+                const response = await axios.put(`${API_BASE_URL}/usuarios/${userId}`, userData, {
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${localStorage.getItem("token")}`
+                    },
                 });
 
                 if (response.status === 200) {

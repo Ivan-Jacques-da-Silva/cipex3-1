@@ -35,7 +35,13 @@ const Turmas = () => {
     const fetchTurmas = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/turmas`);
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/turmas`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
             const data = await response.json();
 
             // Garantir que data seja sempre um array
@@ -67,27 +73,21 @@ const Turmas = () => {
         }
     };
 
-    const handleDelete = async (turmaId) => {
-        try {
-            const token = localStorage.getItem('token');
-            await fetch(`${API_BASE_URL}/delete-turma/${turmaId}`, {
-                method: "DELETE",
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-            fetchTurmas();
-        } catch (error) {
-            console.error("Erro ao excluir turma:", error);
-        }
-    };
+
 
     const handleConfirmarExclusao = async () => {
         if (turmaParaExcluir) {
             try {
+                const token = localStorage.getItem('token');
                 await fetch(
                     `${API_BASE_URL}/delete-turma/${turmaParaExcluir.cp_tr_id}`,
-                    { method: "DELETE" }
+                    {
+                        method: "DELETE",
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
                 );
                 fetchTurmas();
             } catch (error) {
@@ -127,8 +127,8 @@ const Turmas = () => {
         const professor = (turma.nomeDoProfessor || "").toLowerCase();
 
         return nome.includes(searchTerm.toLowerCase()) ||
-               escola.includes(searchTerm.toLowerCase()) ||
-               professor.includes(searchTerm.toLowerCase());
+            escola.includes(searchTerm.toLowerCase()) ||
+            professor.includes(searchTerm.toLowerCase());
     });
 
     const totalPaginas = Math.ceil(filteredTurmas.length / turmasPerPage);
@@ -182,18 +182,18 @@ const Turmas = () => {
                 <div className="p-4">
                     {turmas.length > 0 ? (
                         <div className="card-body p-24">
-                                <Row className="align-items-center">
-                                    <Col md={3} className="text-center">
-                                        <Icon icon="mdi:school-outline" className="text-primary" width={60} height={60} />
-                                    </Col>
-                                    <Col>
-                                        <h5 className="mb-1 text-secondary">{turmas[0].cp_tr_nome}</h5>
-                                        <p className="mb-0"><strong>Início:</strong> {new Date(turmas[0].cp_tr_data).toLocaleDateString("pt-BR")}</p>
-                                        <p className="mb-0"><strong>Professor:</strong> {turmas[0].nomeDoProfessor}</p>
-                                        <p className="mb-0"><strong>Escola:</strong> {turmas[0].nomeDaEscola}</p>
-                                        <p className="mb-0"><strong>Curso:</strong> {turmas[0].cursoNome || "Carregando..."}</p>
-                                    </Col>
-                                </Row>
+                            <Row className="align-items-center">
+                                <Col md={3} className="text-center">
+                                    <Icon icon="mdi:school-outline" className="text-primary" width={60} height={60} />
+                                </Col>
+                                <Col>
+                                    <h5 className="mb-1 text-secondary">{turmas[0].cp_tr_nome}</h5>
+                                    <p className="mb-0"><strong>Início:</strong> {new Date(turmas[0].cp_tr_data).toLocaleDateString("pt-BR")}</p>
+                                    <p className="mb-0"><strong>Professor:</strong> {turmas[0].nomeDoProfessor}</p>
+                                    <p className="mb-0"><strong>Escola:</strong> {turmas[0].nomeDaEscola}</p>
+                                    <p className="mb-0"><strong>Curso:</strong> {turmas[0].cursoNome || "Carregando..."}</p>
+                                </Col>
+                            </Row>
                         </div>
                     ) : (
                         <p className="text-center text-muted">Nenhuma turma encontrada.</p>

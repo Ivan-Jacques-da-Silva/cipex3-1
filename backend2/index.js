@@ -516,7 +516,7 @@ app.get("/turmas/:turmaId/alunos", (req, res) => {
 app.get("/cursos/:cursoId", (req, res) => {
   const { cursoId } = req.params;
 
-  const query = "SELECT * FROM cp_cursos WHERE cp_id = $1";
+  const query = "SELECT * FROM cp_cursos WHERE cp_id_curso = $1";
 
   db.query(query, [cursoId], (err, results) => {
     if (err) {
@@ -529,6 +529,26 @@ app.get("/cursos/:cursoId", (req, res) => {
     }
 
     res.json(results.rows[0]);
+  });
+});
+
+// Rota para buscar alunos de uma escola específica
+app.get("/escola/alunos/:escolaId", (req, res) => {
+  const { escolaId } = req.params;
+
+  const query = `
+    SELECT *
+    FROM cp_usuarios 
+    WHERE cp_escola_id = $1 AND cp_tipo_user = 5 AND cp_excluido = 0
+    ORDER BY cp_nome ASC
+  `;
+
+  db.query(query, [escolaId], (err, results) => {
+    if (err) {
+      console.error("Erro ao buscar alunos da escola:", err);
+      return res.status(500).json({ error: "Erro ao buscar alunos da escola" });
+    }
+    res.json(results.rows);
   });
 });
 

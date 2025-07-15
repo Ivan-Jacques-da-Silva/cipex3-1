@@ -39,14 +39,30 @@ const CadastroTurmaModal = ({ turmaID }) => {
     fetchProfessores();
     fetchEscolas();
     fetchCursos();
-  }, []);
-
-  // Só busca alunos se não for edição (turmaID inexistente)
-  useEffect(() => {
-    if (!turmaID && turmaData.cp_tr_id_escola) {
-      fetchAlunosPorEscola(turmaData.cp_tr_id_escola);
+    
+    // Se não for edição, define a escola do usuário logado
+    if (!turmaID) {
+      const schoolId = localStorage.getItem("schoolId");
+      if (schoolId) {
+        setTurmaData(prev => ({
+          ...prev,
+          cp_tr_id_escola: schoolId
+        }));
+      }
     }
-  }, [turmaData.cp_tr_id_escola, turmaID]);
+  }, [turmaID]);
+
+  // Busca alunos quando escola for selecionada (cadastro) ou quando estiver editando
+  useEffect(() => {
+    if (turmaData.cp_tr_id_escola) {
+      const schoolId = localStorage.getItem("schoolId");
+      
+      // Verifica se a escola selecionada é a mesma do usuário logado
+      if (turmaData.cp_tr_id_escola == schoolId) {
+        fetchAlunosPorEscola(turmaData.cp_tr_id_escola);
+      }
+    }
+  }, [turmaData.cp_tr_id_escola]);
 
   // Reordena os alunos sempre que a lista ou os alunos selecionados mudarem
   useEffect(() => {
@@ -64,54 +80,151 @@ const CadastroTurmaModal = ({ turmaID }) => {
   const fetchAlunosPorEscola = async (escolaId) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/escola/alunos/${escolaId}`);
-      setAlunosPorEscola(response.data);
-      setAlunosFiltrados(response.data);
+      
+      // Filtrar apenas alunos (cp_tipo_user = 5) da escola específica
+      const alunosFiltrados = response.data.filter(usuario => 
+        usuario.cp_tipo_user === 5 && usuario.cp_escola_id == escolaId
+      );
+      
+      setAlunosPorEscola(alunosFiltrados);
+      setAlunosFiltrados(alunosFiltrados);
     } catch (error) {
       console.error("Erro ao buscar os alunos da escola:", error);
     }
   };
 
+  // Efeito separado para carregar dados da turma quando cursos estiverem carregados
   useEffect(() => {
-    if (turmaID) {
-      axios.get(`${API_BASE_URL}/turmas/${turmaID}`)
-        .then(async (response) => {
-          if (response.data) {
-            setTurmaData({
-              ...response.data,
-              cp_tr_data: new Date(response.data.cp_tr_data).toISOString().split("T")[0],
-            });
+    const carregarDadosTurma = async () => {
+      if (!turmaID || cursos.length === 0) return;
+      
+      const token = localStorage.getItem('token');
+      const schoolId = localStorage.getItem("schoolId");
+      
+      try {
+        console.log("Carregando dados da turma:", turmaID);
+        
+        const response = await axios.get(`${API_BASE_URL}/turmas/${turmaID}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-            // ✅ Busca os alunos apenas uma vez
-            const res = await axios.get(`${API_BASE_URL}/escola/alunos/${response.data.cp_tr_id_escola}`);
+        if (response.data) {
+          const dadosTurma = response.data;
+          console.log("Dados da turma recebidos:", dadosTurma);
+          
+          // Verifica se a escola da turma é a mesma do usuário logado (para outros tipos além de gestor)
+          const userType = parseInt(localStorage.getItem("userType"), 10);
+          if (userType !== 1 && dadosTurma.cp_tr_id_escola != schoolId) {
+            toast.error("Você não tem permissão para editar esta turma!");
+            return;
+          }
 
-            if (res.data.length > 0) {
-              const todosAlunos = res.data;
-              const alunosDaTurma = todosAlunos.filter(aluno => aluno.cp_turma_id == turmaID);
+          // Verifica se o curso existe na lista carregada
+          let cursoSelecionado = cursos.find(curso => curso.cp_id_curso === dadosTurma.cp_tr_curso_id);
+          
+          if (!cursoSelecionado && dadosTurma.cp_tr_curso_id) {
+            // Busca o curso específico se não estiver na lista
+            try {
+              const resCurso = await axios.get(`${API_BASE_URL}/cursos/${dadosTurma.cp_tr_curso_id}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (resCurso.data) {
+                // Adiciona o curso à lista
+                setCursos(prev => {
+                  const cursoExistente = prev.find(c => c.cp_id_curso === resCurso.data.cp_id_curso);
+                  if (!cursoExistente) {
+                    console.log("Adicionando curso específico à lista:", resCurso.data);
+                    return [...prev, resCurso.data];
+                  }
+                  return prev;
+                });
+                cursoSelecionado = resCurso.data;
+              }
+            } catch (errorCurso) {
+              console.error("Erro ao buscar curso específico:", errorCurso);
+            }
+          }
+
+          // Preenche os dados básicos da turma
+          const turmaDataAtualizada = {
+            cp_tr_nome: dadosTurma.cp_tr_nome || "",
+            cp_tr_data: dadosTurma.cp_tr_data ? new Date(dadosTurma.cp_tr_data).toISOString().split("T")[0] : "",
+            cp_tr_id_professor: String(dadosTurma.cp_tr_id_professor || ""),
+            cp_tr_id_escola: String(dadosTurma.cp_tr_id_escola || ""),
+            cp_tr_curso_id: String(dadosTurma.cp_tr_curso_id || ""),
+            cp_tr_alunos: []
+          };
+
+          console.log("Curso selecionado:", cursoSelecionado);
+          console.log("Dados da turma atualizados:", turmaDataAtualizada);
+          console.log("ID do curso que será selecionado:", dadosTurma.cp_tr_curso_id);
+
+          setTurmaData(turmaDataAtualizada);
+
+          // Busca os alunos da escola e os alunos da turma
+          if (dadosTurma.cp_tr_id_escola) {
+            try {
+              // Busca todos os alunos da escola
+              const resAlunos = await axios.get(`${API_BASE_URL}/escola/alunos/${dadosTurma.cp_tr_id_escola}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+
+              // Filtrar apenas alunos (cp_tipo_user = 5) da escola específica
+              const todosAlunosEscola = (resAlunos.data || []).filter(usuario => 
+                usuario.cp_tipo_user === 5 && usuario.cp_escola_id == dadosTurma.cp_tr_id_escola
+              );
+              
+              console.log("Alunos da escola carregados:", todosAlunosEscola.length);
+              setAlunosPorEscola(todosAlunosEscola);
+
+              // Busca especificamente os alunos desta turma (via cp_turma_id)
+              const alunosDaTurma = todosAlunosEscola.filter(aluno => 
+                parseInt(aluno.cp_turma_id) === parseInt(turmaID)
+              );
+              
+              console.log("Alunos da turma encontrados:", alunosDaTurma.length);
+              
               const alunosIDs = alunosDaTurma.map(aluno => aluno.cp_id);
 
+              // Atualiza os alunos selecionados
               setTurmaData(prev => ({
                 ...prev,
                 cp_tr_alunos: alunosIDs
               }));
 
-              // ✅ Ordenação correta para manter os alunos da turma no topo
-              const alunosOrdenados = [...todosAlunos].sort((a, b) => {
+              // Ordenação: alunos da turma primeiro, depois os outros
+              const alunosOrdenados = [...todosAlunosEscola].sort((a, b) => {
                 const aNaTurma = alunosIDs.includes(a.cp_id) ? -1 : 1;
                 const bNaTurma = alunosIDs.includes(b.cp_id) ? -1 : 1;
                 return aNaTurma - bNaTurma || a.cp_nome.localeCompare(b.cp_nome);
               });
 
-              setAlunosPorEscola(todosAlunos);
               setAlunosFiltrados(alunosOrdenados);
+
+            } catch (errorAlunos) {
+              console.error("Erro ao buscar alunos:", errorAlunos);
+              toast.error("Erro ao carregar alunos da escola!");
             }
           }
-        })
-        .catch((error) => {
-          console.error("Erro ao buscar a turma:", error);
-          toast.error("Erro ao carregar dados da turma!");
-        });
-    }
-  }, [turmaID]);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar a turma:", error);
+        toast.error("Erro ao carregar dados da turma!");
+      }
+    };
+
+    carregarDadosTurma();
+  }, [turmaID, cursos]);
 
 
 
@@ -144,8 +257,16 @@ const CadastroTurmaModal = ({ turmaID }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    const schoolId = localStorage.getItem("schoolId");
+    const userType = parseInt(localStorage.getItem("userType"), 10);
 
     if (name === "cp_tr_id_escola") {
+      // Verifica se o usuário pode alterar a escola
+      if (userType !== 1 && value != schoolId) {
+        toast.error("Você só pode cadastrar turmas para sua escola!");
+        return;
+      }
+      
       setTurmaData((prev) => ({ ...prev, [name]: value, cp_tr_alunos: [] }));
     } else {
       setTurmaData((prev) => ({ ...prev, [name]: value }));
@@ -318,13 +439,25 @@ const CadastroTurmaModal = ({ turmaID }) => {
                       onChange={handleChange}
                       className="form-control"
                       required
+                      disabled={parseInt(localStorage.getItem("userType"), 10) !== 1}
                     >
                       <option value="" disabled>Selecione uma escola</option>
-                      {escolas.map((escola) => (
-                        <option key={escola.cp_ec_id} value={escola.cp_ec_id}>
-                          {escola.cp_ec_nome}
-                        </option>
-                      ))}
+                      {escolas
+                        .filter(escola => {
+                          const userType = parseInt(localStorage.getItem("userType"), 10);
+                          const schoolId = localStorage.getItem("schoolId");
+                          
+                          // Se for gestor (userType 1), pode ver todas as escolas
+                          if (userType === 1) return true;
+                          
+                          // Outros usuários só veem sua própria escola
+                          return escola.cp_ec_id == schoolId;
+                        })
+                        .map((escola) => (
+                          <option key={escola.cp_ec_id} value={escola.cp_ec_id}>
+                            {escola.cp_ec_nome}
+                          </option>
+                        ))}
                     </select>
                   </Col>
 
@@ -340,7 +473,7 @@ const CadastroTurmaModal = ({ turmaID }) => {
                     >
                       <option value="">Selecione o curso</option>
                       {cursos.map((curso) => (
-                        <option key={curso.cp_curso_id} value={curso.cp_curso_id}>
+                        <option key={curso.cp_id_curso} value={String(curso.cp_id_curso)}>
                           {curso.cp_nome_curso}
                         </option>
                       ))}
