@@ -31,7 +31,12 @@ const Escolas = () => {
     const fetchEscolas = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/escolas`);
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/escolas`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+            });
             const data = await response.json();
             
             // Garantir que data seja sempre um array
@@ -68,25 +73,30 @@ const Escolas = () => {
     // Função para confirmar a exclusão
     const handleConfirmDelete = async () => {
         try {
-            await fetch(`${API_BASE_URL}/escolas/${idEscolaParaExcluir}`, {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/escolas/${idEscolaParaExcluir}`, {
                 method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
             });
-            setMostrarModalExclusao(false);
-            fetchEscolas();
+
+            if (response.ok) {
+                setMostrarModalExclusao(false);
+                setIdEscolaParaExcluir(null);
+                fetchEscolas();
+                // Você pode adicionar um toast de sucesso aqui se desejar
+            } else {
+                throw new Error('Erro ao excluir escola');
+            }
         } catch (error) {
             console.error("Erro ao excluir escola:", error);
+            // Você pode adicionar um toast de erro aqui se desejar
         }
     };
 
     const handleDelete = async (escolaId) => {
-        try {
-            await fetch(`${API_BASE_URL}/escolas/${escolaId}`, {
-                method: "DELETE",
-            });
-            fetchEscolas();
-        } catch (error) {
-            console.error("Erro ao excluir escola:", error);
-        }
+        abrirModalExclusao(escolaId);
     };
 
     const openEditModal = (escolaId) => {

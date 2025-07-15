@@ -97,14 +97,46 @@ const CadastroMatricula = ({
             axios.get(`${API_BASE_URL}/matriculas/${matriculaId}`)
                 .then(response => {
                     if (response.data) {
+                        const dadosMatricula = response.data;
+                        
+                        // Mapear os campos corretamente do schema
                         setMatriculaData(prevData => ({
                             ...prevData,
-                            ...response.data, // Atualiza o estado com os dados vindos da API
-                            valorParcela: response.data.valorParcela || 0 // Garante que não seja undefined
+                            cursoId: dadosMatricula.cp_mt_curso,
+                            escolaId: dadosMatricula.cp_mt_escola_id,
+                            usuarioId: dadosMatricula.cp_mt_usuario_id,
+                            nomeUsuario: dadosMatricula.nome_usuario || dadosMatricula.cp_mt_nome_usuario,
+                            cpfUsuario: dadosMatricula.cpf_usuario || dadosMatricula.cp_mt_cpf_usuario,
+                            valorCurso: dadosMatricula.cp_mt_valor_curso,
+                            numeroParcelas: dadosMatricula.cp_mt_numero_parcelas,
+                            primeiraDataPagamento: dadosMatricula.cp_mt_primeira_data_pagamento,
+                            status: dadosMatricula.cp_mt_status,
+                            nivelIdioma: dadosMatricula.cp_mt_nivel_idioma,
+                            horarioInicio: dadosMatricula.cp_mt_horario_inicio,
+                            horarioFim: dadosMatricula.cp_mt_horario_fim,
+                            escolaridade: dadosMatricula.cp_mt_escolaridade,
+                            localNascimento: dadosMatricula.cp_mt_local_nascimento,
+                            redeSocial: dadosMatricula.cp_mt_rede_social,
+                            nomePai: dadosMatricula.cp_mt_nome_pai,
+                            contatoPai: dadosMatricula.cp_mt_contato_pai,
+                            nomeMae: dadosMatricula.cp_mt_nome_mae,
+                            contatoMae: dadosMatricula.cp_mt_contato_mae,
+                            diasSemana: dadosMatricula.cp_mt_dias_semana
                         }));
-                        if (response.data.usuarioId) {
-                            buscarDadosUsuario(response.data.usuarioId);
-                        }
+
+                        // Buscar dados do usuário usando os nomes corretos da API
+                        setDadosUsuario({
+                            cp_nome: dadosMatricula.nome_usuario,
+                            cp_email: dadosMatricula.email_usuario,
+                            cp_cpf: dadosMatricula.cpf_usuario,
+                            cp_datanascimento: dadosMatricula.data_nascimento,
+                            cp_profissao: dadosMatricula.cp_profissao,
+                            cp_estadocivil: dadosMatricula.estado_civil,
+                            cp_whatsapp: dadosMatricula.cp_whatsapp,
+                            cp_telefone: dadosMatricula.cp_telefone,
+                            cp_end_cidade_estado: dadosMatricula.endereco,
+                            cp_escola_id: dadosMatricula.cp_escola_id
+                        });
                     } else {
                         toast.error("Matrícula não encontrada.");
                     }
@@ -118,24 +150,17 @@ const CadastroMatricula = ({
 
 
     const buscarDadosUsuario = (usuarioId) => {
-        axios.get(`${API_BASE_URL}/matricula/${usuarioId}`)
+        axios.get(`${API_BASE_URL}/buscarusermatricula/${usuarioId}`)
             .then(response => {
                 if (response.data) {
                     setDadosUsuario(response.data); // Atualiza os dados do usuário
 
                     setMatriculaData(prevMatriculaData => ({
                         ...prevMatriculaData,
-                        usuarioId: usuarioId, // Garante que o usuário seja identificado corretamente
-                        nomeUsuario: response.data.nomeUsuario || "",
-                        cpfUsuario: response.data.cpfUsuario || "",
-                        dataNascimento: formatarData(response.data.dataNascimento) || "",
-                        profissao: response.data.profissao || "",
-                        estadoCivil: response.data.estadoCivil || "Não informado",
-                        endereco: response.data.endereco || "",
-                        whatsapp: response.data.whatsapp || "",
-                        telefone: response.data.telefone || "",
-                        email: response.data.email || "",
-                        escolaId: response.data.escolaId || "",
+                        usuarioId: usuarioId,
+                        nomeUsuario: response.data.cp_nome || "",
+                        cpfUsuario: response.data.cp_cpf || "",
+                        escolaId: response.data.cp_escola_id || "",
                     }));
 
                 } else {
@@ -208,50 +233,7 @@ const CadastroMatricula = ({
         }
     }, [matriculaData.valorCurso]);
 
-    useEffect(() => {
-        if (matriculaId) {
-            axios.get(`${API_BASE_URL}/matriculas/${matriculaId}`)
-                .then(response => {
-                    if (response.data) {
-                        const dadosMatricula = response.data;
-
-                        setMatriculaData(prevData => ({
-                            ...prevData,
-                            cursoId: dadosMatricula.cp_mt_curso,
-                            escolaId: dadosMatricula.cp_mt_escola,
-                            usuarioId: dadosMatricula.cp_mt_usuario,
-                            nomeUsuario: dadosMatricula.cp_mt_nome_usuario,
-                            cpfUsuario: dadosMatricula.cp_mt_cadastro_usuario,
-                            valorCurso: dadosMatricula.cp_mt_valor_curso,
-                            numeroParcelas: dadosMatricula.cp_mt_quantas_parcelas,
-                            primeiraDataPagamento: dadosMatricula.cp_mt_primeira_parcela,
-                            status: dadosMatricula.cp_status_matricula,
-                            nivelIdioma: dadosMatricula.cp_mt_nivel,
-                            horarioInicio: dadosMatricula.cp_mt_horario_inicio,
-                            horarioFim: dadosMatricula.cp_mt_horario_fim,
-                            escolaridade: dadosMatricula.cp_mt_escolaridade,
-                            localNascimento: dadosMatricula.cp_mt_local_nascimento,
-                            redeSocial: dadosMatricula.cp_mt_rede_social,
-                            nomePai: dadosMatricula.cp_mt_nome_pai,
-                            contatoPai: dadosMatricula.cp_mt_contato_pai,
-                            nomeMae: dadosMatricula.cp_mt_nome_mae,
-                            contatoMae: dadosMatricula.cp_mt_contato_mae,
-                        }));
-
-                        // Buscar os dados do usuário vinculado à matrícula
-                        if (dadosMatricula.cp_mt_usuario) {
-                            buscarDadosUsuario(dadosMatricula.cp_mt_usuario);
-                        }
-                    } else {
-                        toast.error("Matrícula não encontrada.");
-                    }
-                })
-                .catch(error => {
-                    console.error("Erro ao buscar matrícula:", error);
-                    toast.error("Erro ao buscar matrícula.");
-                });
-        }
-    }, [matriculaId]);
+    
 
 
 
@@ -639,7 +621,7 @@ const CadastroMatricula = ({
                                             type="date"
                                             id="dataNascimento"
                                             name="dataNascimento"
-                                            value={formatarData(dadosUsuario.dataNascimento) || ""}
+                                            value={formatarData(dadosUsuario.cp_datanascimento) || ""}
                                             className="form-control"
                                             readOnly
                                         />
@@ -650,7 +632,7 @@ const CadastroMatricula = ({
                                             type="text"
                                             id="profissao"
                                             name="profissao"
-                                            value={dadosUsuario.profissao || ""}
+                                            value={dadosUsuario.cp_profissao || ""}
                                             className="form-control"
                                             placeholder="Profissão"
                                             readOnly
@@ -662,7 +644,7 @@ const CadastroMatricula = ({
                                             type="text"
                                             id="estadoCivil"
                                             name="estadoCivil"
-                                            value={dadosUsuario.estadoCivil || "Não informado"}
+                                            value={dadosUsuario.cp_estadocivil || "Não informado"}
                                             className="form-control"
                                             placeholder="Estado Civil"
                                             readOnly
@@ -674,7 +656,7 @@ const CadastroMatricula = ({
                                             type="text"
                                             id="endereco"
                                             name="endereco"
-                                            value={`${dadosUsuario.endereco || ""}`}
+                                            value={dadosUsuario.cp_end_cidade_estado || ""}
                                             className="form-control"
                                             placeholder="Endereço"
                                             rows={2}
@@ -686,7 +668,7 @@ const CadastroMatricula = ({
                                         <label htmlFor="whatsapp">Whatsapp:</label>
                                         <InputMask
                                             mask="(99) 99999-9999"
-                                            value={dadosUsuario.whatsapp || ""}
+                                            value={dadosUsuario.cp_whatsapp || ""}
                                             className="form-control"
                                             placeholder="Whatsapp"
                                             readOnly
@@ -697,7 +679,7 @@ const CadastroMatricula = ({
                                         <label htmlFor="telefone">Telefone:</label>
                                         <InputMask
                                             mask="(99) 99999-9999"
-                                            value={dadosUsuario.telefone || ""}
+                                            value={dadosUsuario.cp_telefone || ""}
                                             className="form-control"
                                             placeholder="Telefone"
                                             readOnly
@@ -710,7 +692,7 @@ const CadastroMatricula = ({
                                             type="email"
                                             id="email"
                                             name="email"
-                                            value={dadosUsuario.email || ""}
+                                            value={dadosUsuario.cp_email || ""}
                                             className="form-control"
                                             placeholder="Email"
                                             readOnly
@@ -725,8 +707,10 @@ const CadastroMatricula = ({
                                             name="escolaId"
                                             value={
                                                 escolas.find(
-                                                    (escola) => escola.cp_ec_id === dadosUsuario.escolaId
-                                                )?.cp_ec_nome || ""
+                                                    (escola) => escola.cp_id === dadosUsuario.cp_escola_id || escola.cp_ec_id === dadosUsuario.cp_escola_id
+                                                )?.cp_ec_nome || escolas.find(
+                                                    (escola) => escola.cp_id === dadosUsuario.cp_escola_id || escola.cp_ec_id === dadosUsuario.cp_escola_id
+                                                )?.cp_nome || ""
                                             }
                                             className="form-control"
                                             placeholder="Escola"

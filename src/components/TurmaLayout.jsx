@@ -19,6 +19,8 @@ const Turmas = () => {
     const [showViewModal, setShowViewModal] = useState(false);
     const [turmaData, setTurmaData] = useState(null);
     const [alunosFiltrados, setAlunosFiltrados] = useState([]);
+    const [alunosTurma, setAlunosTurma] = useState([]);
+    const [loadingAlunos, setLoadingAlunos] = useState(false);
 
     useEffect(() => {
         fetchTurmas();
@@ -123,11 +125,9 @@ const Turmas = () => {
 
     const filteredTurmas = turmas.filter((turma) => {
         const nome = (turma.cp_tr_nome || "").toLowerCase();
-        const escola = (turma.nomeDaEscola || "").toLowerCase();
-        const professor = (turma.nomeDoProfessor || "").toLowerCase();
+        const professor = (turma.nomedoprofessor || turma.nomeDoProfessor || "").toLowerCase();
 
         return nome.includes(searchTerm.toLowerCase()) ||
-            escola.includes(searchTerm.toLowerCase()) ||
             professor.includes(searchTerm.toLowerCase());
     });
 
@@ -159,12 +159,15 @@ const Turmas = () => {
                 cursoNome: curso.cp_nome_curso,
             }));
 
+            setLoadingAlunos(true);
             const responseAlunos = await axios.get(`${API_BASE_URL}/turmas/${turma.cp_tr_id}/alunos`);
             const alunos = responseAlunos.data;
-            const alunosDaTurma = alunos;
-            setAlunosFiltrados(alunosDaTurma);
+            setAlunosTurma(alunos);
+
         } catch (error) {
             console.error("Erro ao buscar curso ou alunos:", error);
+        } finally {
+            setLoadingAlunos(false);
         }
 
         setShowViewModal(true);
@@ -174,6 +177,7 @@ const Turmas = () => {
         setShowViewModal(false);
         setTurmaData(null);
         setAlunosFiltrados([]);
+        setAlunosTurma([]);
     };
 
     return (
@@ -189,8 +193,7 @@ const Turmas = () => {
                                 <Col>
                                     <h5 className="mb-1 text-secondary">{turmas[0].cp_tr_nome}</h5>
                                     <p className="mb-0"><strong>Início:</strong> {new Date(turmas[0].cp_tr_data).toLocaleDateString("pt-BR")}</p>
-                                    <p className="mb-0"><strong>Professor:</strong> {turmas[0].nomeDoProfessor}</p>
-                                    <p className="mb-0"><strong>Escola:</strong> {turmas[0].nomeDaEscola}</p>
+                                    <p className="mb-0"><strong>Professor:</strong> {turmas[0].nomedoprofessor || turmas[0].nomeDoProfessor}</p>
                                     <p className="mb-0"><strong>Curso:</strong> {turmas[0].cursoNome || "Carregando..."}</p>
                                 </Col>
                             </Row>
@@ -253,7 +256,6 @@ const Turmas = () => {
                                         <th>Nome</th>
                                         <th>Data de Início</th>
                                         <th>Professor</th>
-                                        <th>Escola</th>
                                         <th className="text-center">Ação</th>
                                         {/* {podeEditar && <th className="text-center">Ação</th>} */}
                                     </tr>
@@ -261,7 +263,7 @@ const Turmas = () => {
                                 <tbody>
                                     {loading ? (
                                         <tr>
-                                            <td colSpan="5" className="text-center">
+                                            <td colSpan="4" className="text-center">
                                                 Carregando...
                                             </td>
                                         </tr>
@@ -270,8 +272,7 @@ const Turmas = () => {
                                             <tr key={turma.cp_tr_id}>
                                                 <td>{turma.cp_tr_nome}</td>
                                                 <td>{new Date(turma.cp_tr_data).toLocaleDateString("pt-BR")}</td>
-                                                <td>{turma.nomeDoProfessor}</td>
-                                                <td>{turma.nomeDaEscola}</td>
+                                                <td>{turma.nomedoprofessor || turma.nomeDoProfessor}</td>
                                                 <td className="text-center">
                                                     {podeEditar && (
                                                         <>
@@ -410,31 +411,60 @@ const Turmas = () => {
                 </Modal.Footer>
             </Modal>
 
-            <Modal show={showViewModal} onHide={closeViewModal} centered>
+            <Modal show={showViewModal} onHide={closeViewModal} size="lg" centered>
                 <Modal.Header closeButton>
                     <Modal.Title>Detalhes da Turma</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <Card>
-                        <Card.Body>
-                            <Card.Title>{turmaData?.cp_tr_nome}</Card.Title>
-                            <Card.Text><strong>Data de Início:</strong> {turmaData?.cp_tr_data ? new Date(turmaData.cp_tr_data).toLocaleDateString("pt-BR") : "-"}</Card.Text>
-                            <Card.Text><strong>Professor:</strong> {turmaData?.nomeDoProfessor}</Card.Text>
-                            <Card.Text><strong>Escola:</strong> {turmaData?.nomeDaEscola}</Card.Text>
-                            <Card.Text><strong>Curso:</strong> {turmaData?.cursoNome}</Card.Text>
-                            <div>
-                                <strong>Alunos da Turma:</strong>
-                                <ul>
-                                    {Array.isArray(alunosFiltrados) && alunosFiltrados.map((aluno) => (
-                                        <li key={aluno.cp_id}>{aluno.cp_nome}</li>
-                                    ))}
-                                </ul>
+                    {turmaData && (
+                        <div>
+                            <div className="mb-4">
+                                <h5 className="mb-3">Informações da Turma</h5>
+                                <p><strong>Nome:</strong> {turmaData.cp_tr_nome}</p>
+                                <p><strong>Data de Início:</strong> {new Date(turmaData.cp_tr_data).toLocaleDateString("pt-BR")}</p>
+                                <p><strong>Professor:</strong> {turmaData.nomedoprofessor || turmaData.nomeDoProfessor || "Não informado"}</p>
                             </div>
-                        </Card.Body>
-                    </Card>
+
+                            <div>
+                                <h5 className="mb-3">Alunos da Turma ({alunosTurma.length})</h5>
+                                {loadingAlunos ? (
+                                    <div className="text-center">
+                                        <span>Carregando alunos...</span>
+                                    </div>
+                                ) : alunosTurma.length > 0 ? (
+                                    <div className="table-responsive">
+                                        <table className="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nome</th>
+                                                    <th>Email</th>
+                                                    <th>Telefone</th>
+                                                    <th>CPF</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {alunosTurma.map((aluno) => (
+                                                    <tr key={aluno.cp_id}>
+                                                        <td>{aluno.cp_nome}</td>
+                                                        <td>{aluno.cp_email}</td>
+                                                        <td>{aluno.cp_telefone || "Não informado"}</td>
+                                                        <td>{aluno.cp_cpf || "Não informado"}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <p className="text-muted">Nenhum aluno matriculado nesta turma.</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={closeViewModal}>Fechar</Button>
+                    <Button variant="secondary" onClick={closeViewModal}>
+                        Fechar
+                    </Button>
                 </Modal.Footer>
             </Modal>
 

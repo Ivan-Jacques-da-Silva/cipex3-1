@@ -449,15 +449,16 @@ app.post("/register", async (req, res) => {
 });
 
 // 1. Rota para buscar todas as turmas
-app.get("/turmas", (req, res) => {
+app.get("/turmas", authenticateToken, (req, res) => {
   const query = `
     SELECT 
-      t.*,
+      t.*, 
       u.cp_nome as nomeDoProfessor,
-      e.cp_ec_nome as nomeDaEscola
+      u.cp_nome as nomedoprofessor,
+      e.cp_ec_nome as nomeDaEscola 
     FROM cp_turmas t
     LEFT JOIN cp_usuarios u ON t.cp_tr_id_professor = u.cp_id
-    LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_ec_id
+    LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
   `;
 
   db.query(query, (err, results) => {
@@ -478,7 +479,7 @@ app.get("/turmasComAlunos", (req, res) => {
       e.cp_ec_nome as nomeDaEscola
     FROM cp_turmas t
     LEFT JOIN cp_usuarios u ON t.cp_tr_id_professor = u.cp_id
-    LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_ec_id
+    LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
   `;
 
   db.query(query, (err, results) => {
@@ -896,7 +897,7 @@ app.delete("/material-extra/:id", authenticateToken, (req, res) => {
 });
 
 // 22. Rota para buscar todas as escolas
-app.get("/escolas", (req, res) => {
+app.get("/escolas", authenticateToken, (req, res) => {
   const query =
     "SELECT * FROM cp_escolas WHERE cp_ec_excluido = 0 OR cp_ec_excluido IS NULL";
 
@@ -933,7 +934,7 @@ app.get("/turmas/:turmaId", (req, res) => {
       e.cp_ec_nome as nomeDaEscola
     FROM cp_turmas t
     LEFT JOIN cp_usuarios u ON t.cp_tr_id_professor = u.cp_id
-    LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_ec_id
+    LEFT JOIN cp_escolas e ON t.cp_tr_id_escola = e.cp_id
     WHERE t.cp_tr_id = $1
   `;
 
@@ -1044,7 +1045,7 @@ app.post("/escolas", authenticateToken, (req, res) => {
       return res.status(500).json({ error: "Erro ao cadastrar escola" });
     }
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: "Escola cadastrada com sucesso",
       escola: result.rows[0],
@@ -1191,7 +1192,7 @@ app.get("/matriculas", (req, res) => {
     FROM cp_matriculas m
     LEFT JOIN cp_usuarios u ON m.cp_mt_usuario_id = u.cp_id
     LEFT JOIN cp_turmas t ON u.cp_turma_id = t.cp_tr_id
-    LEFT JOIN cp_escolas e ON m.cp_mt_escola_id = e.cp_ec_id
+    LEFT JOIN cp_escolas e ON m.cp_mt_escola_id = e.cp_id
     WHERE m.cp_mt_excluido = 0 OR m.cp_mt_excluido IS NULL
   `;
 
@@ -1211,14 +1212,22 @@ app.get("/matriculas/:id", (req, res) => {
   const query = `
     SELECT 
       m.*,
-      m.cp_mt_nome_usuario as nome_usuario,
+      u.cp_nome as nome_usuario,
       u.cp_email as email_usuario,
+      u.cp_cpf as cpf_usuario,
+      u.cp_datanascimento as data_nascimento,
+      u.cp_profissao,
+      u.cp_estadocivil as estado_civil,
+      u.cp_whatsapp,
+      u.cp_telefone,
+      u.cp_end_cidade_estado as endereco,
+      u.cp_escola_id,
       t.cp_tr_nome as nome_turma,
       e.cp_ec_nome as nome_escola
     FROM cp_matriculas m
     LEFT JOIN cp_usuarios u ON m.cp_mt_usuario_id = u.cp_id
     LEFT JOIN cp_turmas t ON u.cp_turma_id = t.cp_tr_id
-    LEFT JOIN cp_escolas e ON m.cp_mt_escola_id = e.cp_ec_id
+    LEFT JOIN cp_escolas e ON m.cp_mt_escola_id = e.cp_id
     WHERE m.cp_mt_id = $1 AND (m.cp_mt_excluido = 0 OR m.cp_mt_excluido IS NULL)
   `;
 
@@ -1236,12 +1245,49 @@ app.get("/matriculas/:id", (req, res) => {
   });
 });
 
+// Rota para buscar dados do usuário para matrícula
+app.get("/buscarusermatricula/:userId", (req, res) => {
+  const { userId } = req.params;
+
+  const query = `
+    SELECT 
+      cp_id,
+      cp_nome,
+      cp_email,
+      cp_cpf,
+      cp_datanascimento,
+      cp_profissao,
+      cp_estadocivil,
+      cp_whatsapp,
+      cp_telefone,
+      cp_end_cidade_estado,
+      cp_end_rua,
+      cp_end_num,
+      cp_escola_id
+    FROM cp_usuarios 
+    WHERE cp_id = $1 AND cp_excluido = 0
+  `;
+
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error("Erro ao buscar usuário:", err);
+      return res.status(500).json({ error: "Erro ao buscar usuário" });
+    }
+
+    if (results.rows.length === 0) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    res.json(results.rows[0]);
+  });
+});
+
 // Buscar escola por ID
 app.get("/escolas/:id", (req, res) => {
   const { id } = req.params;
 
   const query =
-    "SELECT * FROM cp_escolas WHERE cp_ec_id = $1 AND (cp_ec_excluido = 0 OR cp_ec_excluido IS NULL)";
+    "SELECT * FROM cp_escolas WHERE cp_id = $1 AND (cp_ec_excluido = 0 OR cp_ec_excluido IS NULL)";
 
   db.query(query, [id], (err, results) => {
     if (err) {
@@ -1315,7 +1361,7 @@ app.put("/escolas/:id", authenticateToken, (req, res) => {
         cp_ec_data_cadastro = $8,
         cp_ec_descricao = $9,
         updated_at = NOW()
-    WHERE cp_ec_id = $10 RETURNING *
+    WHERE cp_id = $10 RETURNING *
   `;
 
   const values = [
@@ -1598,7 +1644,7 @@ app.put("/usuarios/:id", authenticateToken, async (req, res) => {
 app.delete("/escolas/:id", authenticateToken, (req, res) => {
   const { id } = req.params;
 
-  const query = "UPDATE cp_escolas SET cp_ec_excluido = 1 WHERE cp_ec_id = $1";
+  const query = "UPDATE cp_escolas SET cp_ec_excluido = 1 WHERE cp_id = $1";
 
   db.query(query, [id], (err, result) => {
     if (err) {

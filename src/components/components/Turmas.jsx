@@ -85,10 +85,7 @@ const Turmas = ({ turmas, onSelectTurma }) => {
               {dayjs(selectedTurma.cp_tr_data).format("DD/MM/YYYY")}
             </p>
             <p>
-              <strong>Professor:</strong> {selectedTurma.nomeDoProfessor}
-            </p>
-            <p>
-              <strong>Escola:</strong> {selectedTurma.nomeDaEscola}
+              <strong>Professor:</strong> {selectedTurma.nomedoprofessor || selectedTurma.nomeDoProfessor || "Não informado"}
             </p>
             <p>
               <strong>Curso:</strong> {cursoNome}

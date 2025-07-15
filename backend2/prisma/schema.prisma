@@ -42,7 +42,7 @@ model cp_usuarios {
 
 
 model cp_escolas {
-  cp_ec_id                Int      @id @default(autoincrement())
+  cp_id                   Int      @id @default(autoincrement())
   cp_ec_nome              String
   cp_ec_data_cadastro     DateTime?
   cp_ec_responsavel       String?
@@ -54,7 +54,7 @@ model cp_escolas {
   cp_ec_excluido          Int      @default(0)
   cp_ec_descricao         String?
   created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
+  updated_at              DateTime @default(now()) @updatedAt
 
   @@map("cp_escolas")
 }

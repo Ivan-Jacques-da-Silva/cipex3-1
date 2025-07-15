@@ -25,7 +25,7 @@ const CadastroEscolaModal = ({ escolaId }) => {
         cp_ec_endereco_cidade: "",
         cp_ec_endereco_bairro: "",
         cp_ec_endereco_estado: "",
-        cp_ec_data_cadastro: "",
+        cp_ec_data_cadastro: formatarDataAtual(),
         cp_ec_descricao: "",
     });
 
@@ -35,21 +35,27 @@ const CadastroEscolaModal = ({ escolaId }) => {
 
     useEffect(() => {
         if (escolaId && usuariosResponsaveis.length > 0) {
+            const token = localStorage.getItem('token');
             axios
-                .get(`${API_BASE_URL}/escolas/${escolaId}`)
+                .get(`${API_BASE_URL}/escolas/${escolaId}`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                    },
+                })
                 .then((response) => {
                     const escola = response.data;
-                    
+                    console.log("Dados da escola carregados:", escola);
+
                     // Verificar se o responsável da escola existe na lista de responsáveis
                     const responsavelEncontrado = usuariosResponsaveis.find(
                         usuario => usuario.cp_nome === escola.cp_ec_responsavel
                     );
-                    
+
                     setEscolaData({
                         ...escola,
                         cp_ec_data_cadastro: escola.cp_ec_data_cadastro
                             ? escola.cp_ec_data_cadastro.slice(0, 10)
-                            : new Date().toISOString().slice(0, 10),
+                            : formatarDataAtual(),
                         // Se não encontrar o responsável, definir como "Diretor"
                         cp_ec_responsavel: responsavelEncontrado 
                             ? escola.cp_ec_responsavel 
@@ -119,86 +125,107 @@ const CadastroEscolaModal = ({ escolaId }) => {
         e.preventDefault();
         setShowModal(false);
         if (loading) return;
-        setLoading(true);
 
-        const escolaFormatada = {
-            ...escolaData,
-            cp_ec_data_cadastro: escolaData.cp_ec_data_cadastro
-                ? new Date(escolaData.cp_ec_data_cadastro)
-                      .toISOString()
-                      .slice(0, 10)
-                : new Date().toISOString().slice(0, 10),
-            cp_ec_excluido: 0,
-        };
+        // Validação dos campos obrigatórios
+        if (!escolaData.cp_ec_nome) {
+            toast.error("Nome da escola é obrigatório!");
+            return;
+        }
+        if (!escolaData.cp_ec_endereco_cidade) {
+            toast.error("Cidade é obrigatória!");
+            return;
+        }
+        if (!escolaData.cp_ec_endereco_bairro) {
+            toast.error("Bairro é obrigatório!");
+            return;
+        }
+        if (!escolaData.cp_ec_endereco_estado) {
+            toast.error("Estado é obrigatório!");
+            return;
+        }
+        if (!escolaData.cp_ec_endereco_rua) {
+            toast.error("Rua é obrigatória!");
+            return;
+        }
+        if (!escolaData.cp_ec_endereco_numero) {
+            toast.error("Número é obrigatório!");
+            return;
+        }
+        if (!escolaData.cp_ec_responsavel) {
+            toast.error("Responsável é obrigatório!");
+            return;
+        }
+
+        setLoading(true);
 
         try {
             const modoEdicao = Boolean(escolaId);
+            const token = localStorage.getItem('token');
+
+            const dadosEscola = {
+                cp_ec_nome: escolaData.cp_ec_nome,
+                cp_ec_responsavel: escolaData.cp_ec_responsavel,
+                cp_ec_endereco_rua: escolaData.cp_ec_endereco_rua,
+                cp_ec_endereco_numero: escolaData.cp_ec_endereco_numero,
+                cp_ec_endereco_cidade: escolaData.cp_ec_endereco_cidade,
+                cp_ec_endereco_bairro: escolaData.cp_ec_endereco_bairro,
+                cp_ec_endereco_estado: escolaData.cp_ec_endereco_estado,
+                cp_ec_data_cadastro: escolaData.cp_ec_data_cadastro || new Date().toISOString().slice(0, 10),
+                cp_ec_descricao: escolaData.cp_ec_descricao,
+            };
+
             const resposta = modoEdicao
                 ? await axios.put(
                       `${API_BASE_URL}/escolas/${escolaId}`,
-                      {
-                          cp_ec_nome: escolaData.cp_ec_nome,
-                          cp_ec_responsavel: escolaData.cp_ec_responsavel,
-                          cp_ec_endereco_rua: escolaData.cp_ec_endereco_rua,
-                          cp_ec_endereco_numero: escolaData.cp_ec_endereco_numero,
-                          cp_ec_endereco_cidade: escolaData.cp_ec_endereco_cidade,
-                          cp_ec_endereco_bairro: escolaData.cp_ec_endereco_bairro,
-                          cp_ec_endereco_estado: escolaData.cp_ec_endereco_estado,
-                          cp_ec_data_cadastro: escolaData.cp_ec_data_cadastro,
-                          cp_ec_descricao: escolaData.cp_ec_descricao,
-                      },
+                      dadosEscola,
                       {
                           headers: {
                               "Content-Type": "application/json",
+                              "Authorization": `Bearer ${token}`,
                           },
                       },
                   )
                 : await axios.post(
                       `${API_BASE_URL}/escolas`,
-                      {
-                          cp_ec_nome: escolaData.cp_ec_nome,
-                          cp_ec_responsavel: escolaData.cp_ec_responsavel,
-                          cp_ec_endereco_rua: escolaData.cp_ec_endereco_rua,
-                          cp_ec_endereco_numero: escolaData.cp_ec_endereco_numero,
-                          cp_ec_endereco_cidade: escolaData.cp_ec_endereco_cidade,
-                          cp_ec_endereco_bairro: escolaData.cp_ec_endereco_bairro,
-                          cp_ec_endereco_estado: escolaData.cp_ec_endereco_estado,
-                          cp_ec_data_cadastro: escolaData.cp_ec_data_cadastro,
-                          cp_ec_descricao: escolaData.cp_ec_descricao,
-                      },
+                      dadosEscola,
                       {
                           headers: {
                               "Content-Type": "application/json",
+                              "Authorization": `Bearer ${token}`,
                           },
                       },
                   );
 
-            if (resposta.status === 200) {
+            if (resposta.status === 200 && resposta.data.success) {
                 toast.success(
                     modoEdicao
                         ? "Escola atualizada com sucesso!"
                         : "Escola cadastrada com sucesso!",
                 );
-            } else {
-                throw new Error("Erro inesperado");
-            }
 
-            if (!modoEdicao) {
-                setEscolaData({
-                    cp_ec_nome: "",
-                    cp_ec_responsavel: "",
-                    cp_ec_endereco_rua: "",
-                    cp_ec_endereco_numero: "",
-                    cp_ec_endereco_cidade: "",
-                    cp_ec_endereco_bairro: "",
-                    cp_ec_endereco_estado: "",
-                    cp_ec_data_cadastro: "",
-                    cp_ec_descricao: "",
-                });
+                // Limpar formulário apenas se for cadastro novo
+                if (!modoEdicao) {
+                    setEscolaData({
+                        cp_ec_nome: "",
+                        cp_ec_responsavel: "",
+                        cp_ec_endereco_rua: "",
+                        cp_ec_endereco_numero: "",
+                        cp_ec_endereco_cidade: "",
+                        cp_ec_endereco_bairro: "",
+                        cp_ec_endereco_estado: "",
+                        cp_ec_data_cadastro: "",
+                        cp_ec_descricao: "",
+                    });
+                }
+            } else {
+                throw new Error(resposta.data?.message || "Erro inesperado");
             }
         } catch (error) {
             console.error("Erro:", error);
-            toast.error("Erro ao realizar a operação. Tente novamente.");
+            const errorMessage = error.response?.data?.error || 
+                               error.response?.data?.message || 
+                               "Erro ao realizar a operação. Tente novamente.";
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
