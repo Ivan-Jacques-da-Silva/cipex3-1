@@ -951,6 +951,25 @@ app.get("/turmas/:turmaId", (req, res) => {
   });
 });
 
+// 25. Rota para buscar usuários por tipo
+app.get("/users-escolas", (req, res) => {
+  const { cp_tipo_user } = req.query;
+
+  if (!cp_tipo_user) {
+    return res.status(400).json({ error: "Tipo de usuário é obrigatório" });
+  }
+
+  const query = "SELECT * FROM cp_usuarios WHERE cp_tipo_user = $1 AND cp_excluido = 0";
+
+  db.query(query, [cp_tipo_user], (err, results) => {
+    if (err) {
+      console.error("Erro ao buscar usuários por tipo:", err);
+      return res.status(500).json({ error: "Erro ao buscar usuários por tipo" });
+    }
+    res.json(results.rows);
+  });
+});
+
 // 25. Rota proxy para download
 app.get("/proxy-download", (req, res) => {
   const { url } = req.query;
@@ -977,18 +996,47 @@ app.get("/proxy-download", (req, res) => {
 
 // Cadastro de escola
 app.post("/escolas", authenticateToken, (req, res) => {
-  const { cp_ec_nome, cp_ec_telefone, cp_ec_email, cp_ec_endereco } = req.body;
+  const { 
+    cp_ec_nome, 
+    cp_ec_responsavel,
+    cp_ec_endereco_rua,
+    cp_ec_endereco_numero,
+    cp_ec_endereco_cidade,
+    cp_ec_endereco_bairro,
+    cp_ec_endereco_estado,
+    cp_ec_data_cadastro,
+    cp_ec_descricao
+  } = req.body;
 
   if (!cp_ec_nome) {
     return res.status(400).json({ error: "Nome da escola é obrigatório" });
   }
 
   const query = `
-    INSERT INTO cp_escolas (cp_ec_nome, cp_ec_telefone, cp_ec_email, cp_ec_endereco)
-    VALUES ($1, $2, $3, $4) RETURNING *
+    INSERT INTO cp_escolas (
+      cp_ec_nome, 
+      cp_ec_responsavel,
+      cp_ec_endereco_rua,
+      cp_ec_endereco_numero,
+      cp_ec_endereco_cidade,
+      cp_ec_endereco_bairro,
+      cp_ec_endereco_estado,
+      cp_ec_data_cadastro,
+      cp_ec_descricao
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
   `;
 
-  const values = [cp_ec_nome, cp_ec_telefone, cp_ec_email, cp_ec_endereco];
+  const values = [
+    cp_ec_nome, 
+    cp_ec_responsavel,
+    cp_ec_endereco_rua,
+    cp_ec_endereco_numero,
+    cp_ec_endereco_cidade,
+    cp_ec_endereco_bairro,
+    cp_ec_endereco_estado,
+    cp_ec_data_cadastro,
+    cp_ec_descricao
+  ];
 
   db.query(query, values, (err, result) => {
     if (err) {
@@ -1239,7 +1287,17 @@ app.get("/usuarios/:id", (req, res) => {
 // Editar escola
 app.put("/escolas/:id", authenticateToken, (req, res) => {
   const { id } = req.params;
-  const { cp_ec_nome, cp_ec_telefone, cp_ec_email, cp_ec_endereco } = req.body;
+  const { 
+    cp_ec_nome, 
+    cp_ec_responsavel,
+    cp_ec_endereco_rua,
+    cp_ec_endereco_numero,
+    cp_ec_endereco_cidade,
+    cp_ec_endereco_bairro,
+    cp_ec_endereco_estado,
+    cp_ec_data_cadastro,
+    cp_ec_descricao
+  } = req.body;
 
   if (!cp_ec_nome) {
     return res.status(400).json({ error: "Nome da escola é obrigatório" });
@@ -1247,11 +1305,31 @@ app.put("/escolas/:id", authenticateToken, (req, res) => {
 
   const query = `
     UPDATE cp_escolas 
-    SET cp_ec_nome = $1, cp_ec_telefone = $2, cp_ec_email = $3, cp_ec_endereco = $4, updated_at = NOW()
-    WHERE cp_ec_id = $5 RETURNING *
+    SET cp_ec_nome = $1, 
+        cp_ec_responsavel = $2,
+        cp_ec_endereco_rua = $3,
+        cp_ec_endereco_numero = $4,
+        cp_ec_endereco_cidade = $5,
+        cp_ec_endereco_bairro = $6,
+        cp_ec_endereco_estado = $7,
+        cp_ec_data_cadastro = $8,
+        cp_ec_descricao = $9,
+        updated_at = NOW()
+    WHERE cp_ec_id = $10 RETURNING *
   `;
 
-  const values = [cp_ec_nome, cp_ec_telefone, cp_ec_email, cp_ec_endereco, id];
+  const values = [
+    cp_ec_nome, 
+    cp_ec_responsavel,
+    cp_ec_endereco_rua,
+    cp_ec_endereco_numero,
+    cp_ec_endereco_cidade,
+    cp_ec_endereco_bairro,
+    cp_ec_endereco_estado,
+    cp_ec_data_cadastro,
+    cp_ec_descricao,
+    id
+  ];
 
   db.query(query, values, (err, result) => {
     if (err) {
@@ -1373,6 +1451,10 @@ app.put("/turmas/:id", authenticateToken, (req, res) => {
 // Editar usuário
 app.put("/usuarios/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
+
+  if (req.body.cp_cnpj) {
+    req.body.cp_cnpj = req.body.cp_cnpj.replace(/\D/g, "");
+  }
   const {
     cp_nome,
     cp_email,
@@ -1556,7 +1638,8 @@ app.delete("/usuarios/:id", authenticateToken, (req, res) => {
 app.delete("/matriculas/:id", authenticateToken, (req, res) => {
   const { id } = req.params;
 
-  const query = "UPDATE cp_matriculas SET cp_mt_excluido = 1 WHERE cp_mt_id = $1";
+  const query =
+    "UPDATE cp_matriculas SET cp_mt_excluido = 1 WHERE cp_mt_id = $1";
 
   db.query(query, [id], (err, result) => {
     if (err) {
@@ -1569,93 +1652,6 @@ app.delete("/matriculas/:id", authenticateToken, (req, res) => {
     }
 
     res.json({ message: "Matrícula deletada com sucesso" });
-  });
-});
-
-// Rota para buscar turmas para migração
-app.get("/turmas-migracao", (req, res) => {
-  const query = `
-    SELECT 
-      cp_tr_id, 
-      cp_tr_nome, 
-      cp_tr_data, 
-      cp_tr_id_professor, 
-      cp_tr_id_escola, 
-      cp_tr_curso_id 
-    FROM cp_turmas
-  `;
-
-  db.query(query, (err, result) => {
-    if (err) {
-      console.error("Erro ao buscar turmas para migração:", err);
-      res.status(500).send({ msg: "Erro no servidor" });
-    } else {
-      res.send(result.rows);
-    }
-  });
-});
-
-// Rota para buscar matrículas para migração
-app.get("/matriculas-migracao", (req, res) => {
-  const query = `
-    SELECT 
-      cp_mt_id, 
-      cp_mt_curso, 
-      cp_mt_escola, 
-      cp_mt_usuario, 
-      cp_mt_nome_usuario, 
-      cp_mt_cadastro_usuario, 
-      cp_mt_valor_curso, 
-      cp_mt_quantas_parcelas, 
-      cp_mt_parcelas_pagas, 
-      cp_mt_primeira_parcela, 
-      cp_status_matricula, 
-      cp_mt_nivel, 
-      cp_mt_horario_inicio, 
-      cp_mt_horario_fim, 
-      cp_mt_escolaridade, 
-      cp_mt_local_nascimento, 
-      cp_mt_rede_social, 
-      cp_mt_nome_pai, 
-      cp_mt_contato_pai, 
-      cp_mt_nome_mae, 
-      cp_mt_contato_mae, 
-      cp_mt_excluido, 
-      cp_mt_tipo_pagamento, 
-      cp_mt_dias_semana 
-    FROM cp_matriculas
-  `;
-
-  db.query(query, (err, result) => {
-    if (err) {
-      console.error("Erro ao buscar matrículas para migração:", err);
-      res.status(500).send({ msg: "Erro no servidor" });
-    } else {
-      res.send(result.rows);
-    }
-  });
-});
-
-// Rota para buscar cursos para migração
-app.get("/cursos-migracao", (req, res) => {
-  const query = `
-    SELECT 
-      cp_id_curso as cp_curso_id, 
-      cp_nome_curso, 
-      cp_youtube_link_curso, 
-      cp_pdf1_curso, 
-      cp_pdf2_curso, 
-      cp_pdf3_curso 
-    FROM cp_cursos
-  `;
-
-  db.query(query, (err, result) => {
-    if (err) {
-      console.error("Erro ao buscar cursos para migração:", err);
-      res.status(500).send({ msg: "Erro no servidor" });
-    } else {
-      res.send(result.rows);
-    }
   });
 });
 

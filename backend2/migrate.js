@@ -137,8 +137,6 @@ async function migrateEscolas() {
             cp_ec_endereco_estado: escola.cp_ec_endereco_estado,
             cp_ec_excluido: parseInt(escola.cp_ec_excluido) || 0,
             cp_ec_descricao: escola.cp_ec_descricao,
-            cp_ec_telefone: null, // campo não existe na rota de migração
-            cp_ec_email: null, // campo não existe na rota de migração
             created_at: new Date(),
             updated_at: new Date(),
           },

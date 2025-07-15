@@ -16,6 +16,14 @@ const Escolas = () => {
     const [mostrarModalExclusao, setMostrarModalExclusao] = useState(false);
     const [idEscolaParaExcluir, setIdEscolaParaExcluir] = useState(null);
 
+    // Função para capitalizar a primeira letra de cada palavra
+    const capitalizeWords = (str) => {
+        if (!str) return "-";
+        return str.toLowerCase().split(' ').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+    };
+
     useEffect(() => {
         fetchEscolas();
     }, []);
@@ -112,12 +120,12 @@ const Escolas = () => {
 
     const filteredEscolas = escolas.filter((escola) => {
         const nome = (escola.cp_nome || escola.cp_ec_nome || "").toLowerCase();
-        const telefone = (escola.cp_telefone || escola.cp_ec_telefone || "").toLowerCase();
-        const email = (escola.cp_email || escola.cp_ec_email || "").toLowerCase();
+        const responsavel = (escola.cp_ec_responsavel || "").toLowerCase();
+        const cidade = (escola.cp_ec_endereco_cidade || "").toLowerCase();
 
         return nome.includes(searchTerm.toLowerCase()) ||
-               telefone.includes(searchTerm.toLowerCase()) ||
-               email.includes(searchTerm.toLowerCase());
+               responsavel.includes(searchTerm.toLowerCase()) ||
+               cidade.includes(searchTerm.toLowerCase());
     });
 
     const totalPaginas = Math.ceil(filteredEscolas.length / escolasPerPage);
@@ -203,13 +211,13 @@ const Escolas = () => {
                                 currentEscolas.map((escola) => (
                                     <tr key={escola.cp_id || escola.cp_ec_id}>
                                         <td>{escola.cp_nome || escola.cp_ec_nome}</td>
-                                        <td>{escola.cp_telefone || escola.cp_ec_telefone}</td>
+                                        <td>{capitalizeWords(escola.cp_ec_responsavel)}</td>
                                         <td>
                                             {escola.created_at ? new Date(escola.created_at).toLocaleDateString(
                                                 "pt-BR"
                                             ) : "-"}
                                         </td>
-                                        <td>{escola.cp_endereco || escola.cp_ec_endereco}</td>
+                                        <td>{capitalizeWords(escola.cp_ec_endereco_cidade)}</td>
                                         <td className="text-center">
                                             <Link
                                                 to={`/cadastro-escola/${escola.cp_id || escola.cp_ec_id}`}

@@ -67,9 +67,19 @@ const CadastroUsuarioModal = ({ userId }) => {
 
     useEffect(() => {
         if (userId) {
-            axios.get(`${API_BASE_URL}/usuarios/${userId}`)
+            const token = localStorage.getItem("token");
+            axios.get(`${API_BASE_URL}/usuarios/${userId}`, {
+                headers: { 
+                    "Authorization": `Bearer ${token}`
+                }
+            })
                 .then(response => {
-                    setUserData(response.data); // Preenche o formulário
+                    const user = response.data;
+                    // Formatar data para o formato esperado pelo input date
+                    if (user.cp_datanascimento) {
+                        user.cp_datanascimento = user.cp_datanascimento.split('T')[0];
+                    }
+                    setUserData(user);
                 })
                 .catch(error => {
                     console.error("Erro ao buscar usuário:", error);
@@ -127,68 +137,57 @@ const CadastroUsuarioModal = ({ userId }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // Validação de senhas para cadastro
+        if (!userId && userData.cp_password !== confirmPassword) {
+            toast.error("As senhas não coincidem.");
+            return;
+        }
+
         try {
             if (userId) {
-                // Modo de edição: Enviar como JSON, pois o backend espera JSON e não FormData
+                // Modo de edição: Enviar como JSON
+                console.log("=== DEBUG FRONTEND EDIÇÃO ===");
+                console.log("UserID:", userId);
+                console.log("Dados enviados:", userData);
+                console.log("Token:", localStorage.getItem("token"));
+
+                const token = localStorage.getItem("token");
+                if (!token) {
+                    toast.error("Token de autenticação não encontrado. Faça login novamente.");
+                    return;
+                }
+
                 const response = await axios.put(`${API_BASE_URL}/usuarios/${userId}`, userData, {
                     headers: { 
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${localStorage.getItem("token")}`
+                        "Authorization": `Bearer ${token}`
                     },
                 });
 
-                if (response.status === 200) {
+                console.log("Resposta do servidor:", response.data);
+
+                if (response.data.success) {
                     toast.success("Usuário editado com sucesso!");
-                    handleCloseModal();
-                    navigate("/usuarios");
+                    setTimeout(() => {
+                        navigate("/usuarios");
+                    }, 1500);
                 } else {
                     toast.error("Erro ao editar usuário.");
                 }
             } else {
                 // Modo de cadastro: Criar novo usuário
-                const formData = new FormData();
-                if (userData.cp_foto_perfil) {
-                    formData.append("cp_foto_perfil", userData.cp_foto_perfil);
-                }
-                Object.keys(userData).forEach((chave) => {
-                    if (chave !== "cp_foto_perfil") {
-                        formData.append(chave, userData[chave]);
-                    }
+                console.log("=== DEBUG FRONTEND CADASTRO ===");
+                console.log("Dados para cadastro:", userData);
+
+                const response = await axios.post(`${API_BASE_URL}/register`, userData, {
+                    headers: { 
+                        "Content-Type": "application/json"
+                    },
                 });
 
-                // const userData = {
-                //     nome: formData.nome,
-                //     email: formData.email,
-                //     login: formData.login,
-                //     password: formData.password,
-                //     tipo_user: parseInt(formData.tipo_user),
-                //     rg: formData.rg,
-                //     cpf: formData.cpf,
-                //     datanascimento: formData.datanascimento,
-                //     estadocivil: formData.estadocivil,
-                //     cnpj: formData.cnpj,
-                //     ie: formData.ie,
-                //     whatsapp: formData.whatsapp,
-                //     telefone: formData.telefone,
-                //     empresaatuacao: formData.empresaatuacao,
-                //     profissao: formData.profissao,
-                //     end_cidade_estado: formData.end_cidade_estado,
-                //     end_rua: formData.end_rua,
-                //     end_num: formData.end_num,
-                //     end_cep: formData.end_cep,
-                //     descricao: formData.descricao,
-                //     escola_id: formData.escola_id || null,
-                //     turma_id: formData.turma_id || null
-                // };
+                console.log("Resposta do cadastro:", response.data);
 
-                const response = await axios.post(`${API_BASE_URL}/register`, formData, {
-                    headers: { "Content-Type": "multipart/form-data" }, // Mantém para cadastro
-                });
-
-                if (response.data.exists) {
-                    toast.error("Usuário já cadastrado");
-                    handleCloseModal();
-                } else {
+                if (response.data.success) {
                     toast.success("Usuário cadastrado com sucesso!");
 
                     // Resetar os campos após o cadastro
@@ -198,13 +197,27 @@ const CadastroUsuarioModal = ({ userId }) => {
                         cp_estadocivil: "", cp_cnpj: "", cp_ie: "", cp_whatsapp: "",
                         cp_telefone: "", cp_empresaatuacao: "", cp_profissao: "",
                         cp_end_cidade_estado: "", cp_end_rua: "", cp_end_num: "",
-                        cp_end_cep: "", cp_descricao: "", cp_escola_id: ""
+                        cp_end_cep: "", cp_descricao: "", cp_escola_id: "", cp_turma_id: ""
                     });
+                    setConfirmPassword("");
+                    handleCloseModal();
+                } else {
+                    toast.error(response.data.error || "Erro ao cadastrar usuário");
                 }
             }
         } catch (error) {
-            console.error("Erro ao salvar:", error.response?.data || error.message);
-            toast.error("Erro ao salvar usuário. Tente novamente.");
+            console.error("Erro ao salvar:", error);
+            
+            if (error.response) {
+                console.error("Erro da resposta:", error.response.data);
+                toast.error(error.response.data.error || "Erro no servidor. Tente novamente.");
+            } else if (error.request) {
+                console.error("Erro de requisição:", error.request);
+                toast.error("Erro de conexão. Verifique sua internet.");
+            } else {
+                console.error("Erro:", error.message);
+                toast.error("Erro inesperado. Tente novamente.");
+            }
         }
     };
 
@@ -262,7 +275,7 @@ const CadastroUsuarioModal = ({ userId }) => {
                                         />
                                     </Col>
                                     <Col md={12}>
-                                        <label htmlFor="cp_password">Senha<span className="required">*</span>:</label>
+                                        <label htmlFor="cp_password">Senha{!userId && <span className="required">*</span>}:</label>
                                         <div className="input-group">
                                             <input
                                                 type={showPassword ? "text" : "password"}
@@ -271,8 +284,8 @@ const CadastroUsuarioModal = ({ userId }) => {
                                                 value={userData.cp_password}
                                                 onChange={handleChange}
                                                 className="form-control"
-                                                placeholder="Senha"
-                                                required
+                                                placeholder={userId ? "Deixe em branco para manter a senha atual" : "Senha"}
+                                                required={!userId}
                                             />
                                             <Button
                                                 variant="secondary"
@@ -283,6 +296,21 @@ const CadastroUsuarioModal = ({ userId }) => {
                                             </Button>
                                         </div>
                                     </Col>
+                                    {!userId && (
+                                        <Col md={12}>
+                                            <label htmlFor="confirmPassword">Confirmar Senha<span className="required">*</span>:</label>
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                id="confirmPassword"
+                                                name="confirmPassword"
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                className="form-control"
+                                                placeholder="Confirmar Senha"
+                                                required={!userId}
+                                            />
+                                        </Col>
+                                    )}
                                     <Col md={12}>
                                         <label htmlFor="cp_tipo_user">Tipo de Usuário<span className="required">*</span>:</label>
                                         <select

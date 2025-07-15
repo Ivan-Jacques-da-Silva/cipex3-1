@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from './config';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { API_BASE_URL } from "./config";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Row, Col, Button, Form, Modal } from "react-bootstrap";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import InputMask from "react-input-mask";
-
 
 const CadastroEscolaModal = ({ escolaId }) => {
     const [showModal, setShowModal] = useState(false);
@@ -18,67 +17,102 @@ const CadastroEscolaModal = ({ escolaId }) => {
         return data.toISOString().slice(0, 10);
     };
 
-
     const [escolaData, setEscolaData] = useState({
-        cp_ec_nome: '',
-        cp_ec_responsavel: '',
-        cp_ec_endereco_rua: '',
-        cp_ec_endereco_numero: '',
-        cp_ec_endereco_cidade: '',
-        cp_ec_endereco_bairro: '',
-        cp_ec_endereco_estado: '',
-        cp_ec_data_cadastro: '',
-        cp_ec_descricao: '',
+        cp_ec_nome: "",
+        cp_ec_responsavel: "",
+        cp_ec_endereco_rua: "",
+        cp_ec_endereco_numero: "",
+        cp_ec_endereco_cidade: "",
+        cp_ec_endereco_bairro: "",
+        cp_ec_endereco_estado: "",
+        cp_ec_data_cadastro: "",
+        cp_ec_descricao: "",
     });
-
-    useEffect(() => {
-        if (escolaId) {
-            axios.get(`${API_BASE_URL}/escolas/${escolaId}`)
-                .then(response => {
-                    const escola = response.data;
-                    setEscolaData({
-                        ...escola,
-                        cp_ec_data_cadastro: escola.cp_ec_data_cadastro
-                            ? escola.cp_ec_data_cadastro.slice(0, 10)
-                            : new Date().toISOString().slice(0, 10)
-                    });
-                })
-                .catch(error => {
-                    console.error("Erro ao buscar escola:", error);
-                    toast.error("Erro ao carregar os dados da escola.");
-                });
-        }
-    }, [escolaId]);
-
 
     useEffect(() => {
         fetchResponsaveis();
     }, []);
 
+    useEffect(() => {
+        if (escolaId && usuariosResponsaveis.length > 0) {
+            axios
+                .get(`${API_BASE_URL}/escolas/${escolaId}`)
+                .then((response) => {
+                    const escola = response.data;
+                    
+                    // Verificar se o responsável da escola existe na lista de responsáveis
+                    const responsavelEncontrado = usuariosResponsaveis.find(
+                        usuario => usuario.cp_nome === escola.cp_ec_responsavel
+                    );
+                    
+                    setEscolaData({
+                        ...escola,
+                        cp_ec_data_cadastro: escola.cp_ec_data_cadastro
+                            ? escola.cp_ec_data_cadastro.slice(0, 10)
+                            : new Date().toISOString().slice(0, 10),
+                        // Se não encontrar o responsável, definir como "Diretor"
+                        cp_ec_responsavel: responsavelEncontrado 
+                            ? escola.cp_ec_responsavel 
+                            : "Diretor"
+                    });
+                })
+                .catch((error) => {
+                    console.error("Erro ao buscar escola:", error);
+                    toast.error("Erro ao carregar os dados da escola.");
+                });
+        }
+    }, [escolaId, usuariosResponsaveis]);
+
     const fetchResponsaveis = async () => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/users-escolas?cp_tipo_user=2`);
+            const response = await axios.get(
+                `${API_BASE_URL}/users-escolas?cp_tipo_user=2`,
+            );
             if (response.data && response.data.length > 0) {
                 setUsuariosResponsaveis(response.data);
             }
         } catch (error) {
-            console.error('Erro ao buscar os responsáveis:', error);
-            toast.error("Erro ao buscar os responsáveis")
+            console.error("Erro ao buscar os responsáveis:", error);
+            toast.error("Erro ao buscar os responsáveis");
         }
     };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setEscolaData(prevEscolaData => ({
+        setEscolaData((prevEscolaData) => ({
             ...prevEscolaData,
-            [name]: value
+            [name]: value,
         }));
     };
 
     const estados = [
-        'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS',
-        'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC',
-        'SP', 'SE', 'TO'
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RJ",
+        "RN",
+        "RS",
+        "RO",
+        "RR",
+        "SC",
+        "SP",
+        "SE",
+        "TO",
     ];
 
     const handleSubmit = async (e) => {
@@ -90,7 +124,9 @@ const CadastroEscolaModal = ({ escolaId }) => {
         const escolaFormatada = {
             ...escolaData,
             cp_ec_data_cadastro: escolaData.cp_ec_data_cadastro
-                ? new Date(escolaData.cp_ec_data_cadastro).toISOString().slice(0, 10)
+                ? new Date(escolaData.cp_ec_data_cadastro)
+                      .toISOString()
+                      .slice(0, 10)
                 : new Date().toISOString().slice(0, 10),
             cp_ec_excluido: 0,
         };
@@ -98,29 +134,51 @@ const CadastroEscolaModal = ({ escolaId }) => {
         try {
             const modoEdicao = Boolean(escolaId);
             const resposta = modoEdicao
-                ? await axios.put(`${API_BASE_URL}/escolas/${escolaId}`, {
-                cp_nome: escolaData.cp_ec_nome,
-                cp_telefone: escolaData.cp_ec_telefone,
-                cp_email: escolaData.cp_ec_email,
-                cp_endereco: escolaData.cp_ec_endereco
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-                : await axios.post(`${API_BASE_URL}/escolas`, {
-                cp_nome: escolaData.cp_ec_nome,
-                cp_telefone: escolaData.cp_ec_telefone,
-                cp_email: escolaData.cp_ec_email,
-                cp_endereco: escolaData.cp_ec_endereco
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+                ? await axios.put(
+                      `${API_BASE_URL}/escolas/${escolaId}`,
+                      {
+                          cp_ec_nome: escolaData.cp_ec_nome,
+                          cp_ec_responsavel: escolaData.cp_ec_responsavel,
+                          cp_ec_endereco_rua: escolaData.cp_ec_endereco_rua,
+                          cp_ec_endereco_numero: escolaData.cp_ec_endereco_numero,
+                          cp_ec_endereco_cidade: escolaData.cp_ec_endereco_cidade,
+                          cp_ec_endereco_bairro: escolaData.cp_ec_endereco_bairro,
+                          cp_ec_endereco_estado: escolaData.cp_ec_endereco_estado,
+                          cp_ec_data_cadastro: escolaData.cp_ec_data_cadastro,
+                          cp_ec_descricao: escolaData.cp_ec_descricao,
+                      },
+                      {
+                          headers: {
+                              "Content-Type": "application/json",
+                          },
+                      },
+                  )
+                : await axios.post(
+                      `${API_BASE_URL}/escolas`,
+                      {
+                          cp_ec_nome: escolaData.cp_ec_nome,
+                          cp_ec_responsavel: escolaData.cp_ec_responsavel,
+                          cp_ec_endereco_rua: escolaData.cp_ec_endereco_rua,
+                          cp_ec_endereco_numero: escolaData.cp_ec_endereco_numero,
+                          cp_ec_endereco_cidade: escolaData.cp_ec_endereco_cidade,
+                          cp_ec_endereco_bairro: escolaData.cp_ec_endereco_bairro,
+                          cp_ec_endereco_estado: escolaData.cp_ec_endereco_estado,
+                          cp_ec_data_cadastro: escolaData.cp_ec_data_cadastro,
+                          cp_ec_descricao: escolaData.cp_ec_descricao,
+                      },
+                      {
+                          headers: {
+                              "Content-Type": "application/json",
+                          },
+                      },
+                  );
 
             if (resposta.status === 200) {
-                toast.success(modoEdicao ? "Escola atualizada com sucesso!" : "Escola cadastrada com sucesso!");
+                toast.success(
+                    modoEdicao
+                        ? "Escola atualizada com sucesso!"
+                        : "Escola cadastrada com sucesso!",
+                );
             } else {
                 throw new Error("Erro inesperado");
             }
@@ -146,8 +204,6 @@ const CadastroEscolaModal = ({ escolaId }) => {
         }
     };
 
-
-
     return (
         <div>
             <ToastContainer />
@@ -158,12 +214,17 @@ const CadastroEscolaModal = ({ escolaId }) => {
                         {/* Coluna da Esquerda */}
                         <div className="card mb-3">
                             <div className="card-header">
-                                <h6 className="card-title mb-0">Informações da Escola</h6>
+                                <h6 className="card-title mb-0">
+                                    Informações da Escola
+                                </h6>
                             </div>
                             <div className="card-body">
                                 <Row className="gy-3">
                                     <Col md={12}>
-                                        <label htmlFor="cp_ec_nome">Nome<span className="required">*</span>:</label>
+                                        <label htmlFor="cp_ec_nome">
+                                            Nome
+                                            <span className="required">*</span>:
+                                        </label>
                                         <input
                                             type="text"
                                             id="cp_ec_nome"
@@ -176,19 +237,27 @@ const CadastroEscolaModal = ({ escolaId }) => {
                                         />
                                     </Col>
                                     <Col md={12}>
-                                        <label htmlFor="cp_ec_data_cadastro">Data de Cadastro<span className="required">*</span>:</label>
+                                        <label htmlFor="cp_ec_data_cadastro">
+                                            Data de Cadastro
+                                            <span className="required">*</span>:
+                                        </label>
                                         <input
                                             type="date"
                                             id="cp_ec_data_cadastro"
                                             name="cp_ec_data_cadastro"
-                                            value={escolaData.cp_ec_data_cadastro}
+                                            value={
+                                                escolaData.cp_ec_data_cadastro
+                                            }
                                             onChange={handleChange}
                                             className="form-control"
                                             required
                                         />
                                     </Col>
                                     <Col md={12}>
-                                        <label htmlFor="cp_ec_responsavel">Responsável<span className="required">*</span>:</label>
+                                        <label htmlFor="cp_ec_responsavel">
+                                            Responsável
+                                            <span className="required">*</span>:
+                                        </label>
                                         <select
                                             id="cp_ec_responsavel"
                                             name="cp_ec_responsavel"
@@ -197,26 +266,42 @@ const CadastroEscolaModal = ({ escolaId }) => {
                                             className="form-control"
                                             required
                                         >
-                                            <option value="">Selecione o responsável</option>
-                                            {usuariosResponsaveis.map((usuario) => (
-                                                <option key={usuario.id || usuario.cp_nome} value={usuario.cp_nome}>
-                                                    {usuario.cp_nome}
-                                                </option>
-                                            ))}
+                                            <option value="">
+                                                Selecione o responsável
+                                            </option>
+                                            <option value="Diretor">
+                                                Diretor
+                                            </option>
+                                            {usuariosResponsaveis.map(
+                                                (usuario) => (
+                                                    <option
+                                                        key={
+                                                            usuario.id ||
+                                                            usuario.cp_nome
+                                                        }
+                                                        value={usuario.cp_nome}
+                                                    >
+                                                        {usuario.cp_nome}
+                                                    </option>
+                                                ),
+                                            )}
                                         </select>
-
                                     </Col>
                                 </Row>
                             </div>
                         </div>
                         <div className="card mb-3">
                             <div className="card-header">
-                                <h6 className="card-title mb-0">Detalhes Adicionais</h6>
+                                <h6 className="card-title mb-0">
+                                    Detalhes Adicionais
+                                </h6>
                             </div>
                             <div className="card-body">
                                 <Row className="gy-3">
                                     <Col md={12}>
-                                        <label htmlFor="cp_ec_descricao">Descrição:</label>
+                                        <label htmlFor="cp_ec_descricao">
+                                            Descrição:
+                                        </label>
                                         <textarea
                                             id="cp_ec_descricao"
                                             name="cp_ec_descricao"
@@ -229,7 +314,6 @@ const CadastroEscolaModal = ({ escolaId }) => {
                                 </Row>
                             </div>
                         </div>
-
                     </Col>
 
                     <Col md={6}>
@@ -240,12 +324,17 @@ const CadastroEscolaModal = ({ escolaId }) => {
                             <div className="card-body">
                                 <Row className="gy-3">
                                     <Col md={12}>
-                                        <label htmlFor="cp_ec_endereco_cidade">Cidade<span className="required">*</span>:</label>
+                                        <label htmlFor="cp_ec_endereco_cidade">
+                                            Cidade
+                                            <span className="required">*</span>:
+                                        </label>
                                         <input
                                             type="text"
                                             id="cp_ec_endereco_cidade"
                                             name="cp_ec_endereco_cidade"
-                                            value={escolaData.cp_ec_endereco_cidade}
+                                            value={
+                                                escolaData.cp_ec_endereco_cidade
+                                            }
                                             onChange={handleChange}
                                             className="form-control"
                                             placeholder="Cidade"
@@ -253,12 +342,17 @@ const CadastroEscolaModal = ({ escolaId }) => {
                                         />
                                     </Col>
                                     <Col md={12}>
-                                        <label htmlFor="cp_ec_endereco_bairro">Bairro<span className="required">*</span>:</label>
+                                        <label htmlFor="cp_ec_endereco_bairro">
+                                            Bairro
+                                            <span className="required">*</span>:
+                                        </label>
                                         <input
                                             type="text"
                                             id="cp_ec_endereco_bairro"
                                             name="cp_ec_endereco_bairro"
-                                            value={escolaData.cp_ec_endereco_bairro}
+                                            value={
+                                                escolaData.cp_ec_endereco_bairro
+                                            }
                                             onChange={handleChange}
                                             className="form-control"
                                             placeholder="Bairro"
@@ -266,30 +360,45 @@ const CadastroEscolaModal = ({ escolaId }) => {
                                         />
                                     </Col>
                                     <Col md={12}>
-                                        <label htmlFor="cp_ec_endereco_estado">Estado<span className="required">*</span>:</label>
+                                        <label htmlFor="cp_ec_endereco_estado">
+                                            Estado
+                                            <span className="required">*</span>:
+                                        </label>
                                         <select
                                             id="cp_ec_endereco_estado"
                                             name="cp_ec_endereco_estado"
-                                            value={escolaData.cp_ec_endereco_estado}
+                                            value={
+                                                escolaData.cp_ec_endereco_estado
+                                            }
                                             onChange={handleChange}
                                             className="form-control"
                                             required
                                         >
-                                            <option value="">Selecione o estado</option>
+                                            <option value="">
+                                                Selecione o estado
+                                            </option>
                                             {estados.map((estado, index) => (
-                                                <option key={index} value={estado}>
+                                                <option
+                                                    key={index}
+                                                    value={estado}
+                                                >
                                                     {estado}
                                                 </option>
                                             ))}
                                         </select>
                                     </Col>
                                     <Col md={12}>
-                                        <label htmlFor="cp_ec_endereco_rua">Rua<span className="required">*</span>:</label>
+                                        <label htmlFor="cp_ec_endereco_rua">
+                                            Rua
+                                            <span className="required">*</span>:
+                                        </label>
                                         <input
                                             type="text"
                                             id="cp_ec_endereco_rua"
                                             name="cp_ec_endereco_rua"
-                                            value={escolaData.cp_ec_endereco_rua}
+                                            value={
+                                                escolaData.cp_ec_endereco_rua
+                                            }
                                             onChange={handleChange}
                                             className="form-control"
                                             placeholder="Rua"
@@ -297,12 +406,17 @@ const CadastroEscolaModal = ({ escolaId }) => {
                                         />
                                     </Col>
                                     <Col md={12}>
-                                        <label htmlFor="cp_ec_endereco_numero">Número<span className="required">*</span>:</label>
+                                        <label htmlFor="cp_ec_endereco_numero">
+                                            Número
+                                            <span className="required">*</span>:
+                                        </label>
                                         <input
                                             type="text"
                                             id="cp_ec_endereco_numero"
                                             name="cp_ec_endereco_numero"
-                                            value={escolaData.cp_ec_endereco_numero}
+                                            value={
+                                                escolaData.cp_ec_endereco_numero
+                                            }
                                             onChange={handleChange}
                                             className="form-control"
                                             placeholder="Número"
@@ -312,15 +426,22 @@ const CadastroEscolaModal = ({ escolaId }) => {
                                 </Row>
                             </div>
                         </div>
-
                     </Col>
                 </Row>
 
                 <div className="mt-4 text-center">
-                    <button type="button" className="btn btn-primary" disabled={loading} onClick={() => setShowModal(true)}>
-                        {loading ? "Salvando..." : escolaId ? "Salvar Alterações" : "Cadastrar Escola"}
+                    <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={loading}
+                        onClick={() => setShowModal(true)}
+                    >
+                        {loading
+                            ? "Salvando..."
+                            : escolaId
+                              ? "Salvar Alterações"
+                              : "Cadastrar Escola"}
                     </button>
-
                 </div>
             </form>
             <Modal show={showModal} onHide={() => setShowModal(false)} centered>
@@ -328,10 +449,17 @@ const CadastroEscolaModal = ({ escolaId }) => {
                     <Modal.Title>Confirmar Cadastro</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    Tem certeza que deseja {escolaId ? "salvar as alterações" : "cadastrar esta escola"}?
+                    Tem certeza que deseja{" "}
+                    {escolaId
+                        ? "salvar as alterações"
+                        : "cadastrar esta escola"}
+                    ?
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowModal(false)}>
+                    <Button
+                        variant="secondary"
+                        onClick={() => setShowModal(false)}
+                    >
                         Cancelar
                     </Button>
                     <Button variant="primary" onClick={handleSubmit}>
@@ -339,8 +467,6 @@ const CadastroEscolaModal = ({ escolaId }) => {
                     </Button>
                 </Modal.Footer>
             </Modal>
-
-
         </div>
     );
 };
