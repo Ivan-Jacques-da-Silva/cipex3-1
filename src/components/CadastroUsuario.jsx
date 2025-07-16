@@ -9,9 +9,6 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 
-
-
-
 // const CadastroUsuarioModal = ({ closeModal, escolas = [] }) => {
 const CadastroUsuarioModal = ({ userId }) => {
     // const { id } = useParams();
@@ -56,7 +53,12 @@ const CadastroUsuarioModal = ({ userId }) => {
     useEffect(() => {
         const fetchEscolas = async () => {
             try {
-                const response = await axios.get(`${API_BASE_URL}/escolas`);
+                const token = localStorage.getItem("token");
+                const response = await axios.get(`${API_BASE_URL}/escolas`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                    },
+                });
                 setEscolas(response.data);
             } catch (error) {
                 console.error("Erro ao buscar escolas:", error);
@@ -79,6 +81,12 @@ const CadastroUsuarioModal = ({ userId }) => {
                     if (user.cp_datanascimento) {
                         user.cp_datanascimento = user.cp_datanascimento.split('T')[0];
                     }
+                    // Garantir que o estado civil seja carregado corretamente
+                    if (!user.cp_estadocivil) {
+                        user.cp_estadocivil = "";
+                    }
+                    console.log("Dados do usuário carregados:", user);
+                    console.log("Estado civil carregado:", user.cp_estadocivil);
                     setUserData(user);
                 })
                 .catch(error => {
@@ -217,7 +225,7 @@ const CadastroUsuarioModal = ({ userId }) => {
             }
         } catch (error) {
             console.error("Erro ao salvar:", error);
-            
+
             if (error.response) {
                 console.error("Erro da resposta:", error.response.data);
                 toast.error(error.response.data.error || "Erro no servidor. Tente novamente.");
@@ -424,11 +432,11 @@ const CadastroUsuarioModal = ({ userId }) => {
                                             className="form-control"
                                         >
                                             <option value="">Selecione...</option>
-                                            <option value="solteiro">Solteiro(a)</option>
-                                            <option value="casado">Casado(a)</option>
-                                            <option value="divorciado">Divorciado(a)</option>
-                                            <option value="viuvo">Viúvo(a)</option>
-                                            <option value="uniao_estavel">União Estável</option>
+                                            <option value="Solteiro(a)">Solteiro(a)</option>
+                                            <option value="Casado(a)">Casado(a)</option>
+                                            <option value="Divorciado(a)">Divorciado(a)</option>
+                                            <option value="Viúvo(a)">Viúvo(a)</option>
+                                            <option value="União Estável">União Estável</option>
                                         </select>
                                     </Col>
 
@@ -556,7 +564,19 @@ const CadastroUsuarioModal = ({ userId }) => {
                                             <input
                                                 type="checkbox"
                                                 checked={isEmpresa}
-                                                onChange={(e) => setIsEmpresa(e.target.checked)}
+                                                onChange={(e) => {
+                                                    setIsEmpresa(e.target.checked);
+                                                    if (!e.target.checked) {
+                                                        // Limpar campos quando desmarcar
+                                                        setUserData(prevData => ({
+                                                            ...prevData,
+                                                            cp_cnpj: "",
+                                                            cp_ie: "",
+                                                            cp_empresaatuacao: "",
+                                                            cp_profissao: ""
+                                                        }));
+                                                    }
+                                                }}
                                                 className="form-check-input"
                                             />
                                             Cadastro de Empresa
@@ -571,7 +591,7 @@ const CadastroUsuarioModal = ({ userId }) => {
                                                     id="cp_cnpj"
                                                     name="cp_cnpj"
                                                     mask="99.999.999/9999-99"
-                                                    value={userData.cp_cnpj}
+                                                    value={userData.cp_cnpj || ""}
                                                     onChange={handleChange}
                                                     className="form-control"
                                                     placeholder="CNPJ"
@@ -583,7 +603,7 @@ const CadastroUsuarioModal = ({ userId }) => {
                                                     type="text"
                                                     id="cp_ie"
                                                     name="cp_ie"
-                                                    value={userData.cp_ie}
+                                                    value={userData.cp_ie || ""}
                                                     onChange={handleChange}
                                                     className="form-control"
                                                     placeholder="IE"
@@ -595,7 +615,7 @@ const CadastroUsuarioModal = ({ userId }) => {
                                                     type="text"
                                                     id="cp_empresaatuacao"
                                                     name="cp_empresaatuacao"
-                                                    value={userData.cp_empresaatuacao}
+                                                    value={userData.cp_empresaatuacao || ""}
                                                     onChange={handleChange}
                                                     className="form-control"
                                                     placeholder="Empresa de Atuação"
@@ -607,7 +627,7 @@ const CadastroUsuarioModal = ({ userId }) => {
                                                     type="text"
                                                     id="cp_profissao"
                                                     name="cp_profissao"
-                                                    value={userData.cp_profissao}
+                                                    value={userData.cp_profissao || ""}
                                                     onChange={handleChange}
                                                     className="form-control"
                                                     placeholder="Profissão"

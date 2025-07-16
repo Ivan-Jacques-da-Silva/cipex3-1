@@ -24,7 +24,12 @@ const Usuarios = () => {
     const fetchMatriculas = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/matriculas`);
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/matriculas`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+            });
             const data = await response.json();
 
             // Garantir que data seja sempre um array
@@ -91,10 +96,7 @@ const Usuarios = () => {
 
         const statusMatches = !statusFilter || matricula.cp_status?.toLowerCase() === statusFilter.toLowerCase();
 
-        // Filtrar apenas matrículas que têm turma associada
-        const hasTurma = matricula.nome_turma && matricula.nome_turma.trim() !== '';
-
-        return nomeUsuario.includes(searchTerm.toLowerCase()) && statusMatches && hasTurma;
+        return nomeUsuario.includes(searchTerm.toLowerCase()) && statusMatches;
     });
 
     const totalPaginas = Math.ceil(filteredMatriculas.length / matriculasPerPage);
@@ -167,14 +169,13 @@ const Usuarios = () => {
                                 <th>Aluno</th>
                                 <th>Status</th>
                                 <th>Parcelas</th>
-                                <th>Turma</th>
                                 <th className="text-center">Ação</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan="5" className="text-center">
+                                    <td colSpan="4" className="text-center">
                                         Carregando...
                                     </td>
                                 </tr>
@@ -199,7 +200,6 @@ const Usuarios = () => {
                                             </span>
                                         </td>
                                         <td>{`${matricula.cp_mt_parcelas_pagas || 0}/${matricula.cp_mt_quantas_parcelas || 0}`}</td>
-                                        <td>{matricula.nome_turma || '-'}</td>
                                         <td className="text-center">
                                             <Link
                                                 to={`/cadastro-matricula/${matricula.cp_mt_id}`}

@@ -1184,6 +1184,12 @@ app.post("/cadastrar-matricula", authenticateToken, (req, res) => {
     return res.status(400).json({ error: "Usuário, escola e curso são obrigatórios" });
   }
 
+  // Validar e converter cursoId para integer
+  const cursoIdInt = parseInt(cursoId);
+  if (isNaN(cursoIdInt)) {
+    return res.status(400).json({ error: "ID do curso deve ser um número válido" });
+  }
+
   const query = `
     INSERT INTO cp_matriculas (
       cp_mt_curso, cp_mt_usuario_id, cp_mt_escola_id, cp_mt_nome_usuario,
@@ -1192,14 +1198,14 @@ app.post("/cadastrar-matricula", authenticateToken, (req, res) => {
       cp_mt_horario_inicio, cp_mt_horario_fim, cp_mt_local_nascimento,
       cp_mt_escolaridade, cp_mt_rede_social, cp_mt_nome_pai,
       cp_mt_contato_pai, cp_mt_nome_mae, cp_mt_contato_mae,
-      cp_mt_dias_semana, cp_mt_tipo_pagamento
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *
+      cp_mt_dias_semana, cp_mt_tipo_pagamento, created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW(), NOW()) RETURNING *
   `;
 
   const values = [
-    cursoId,
-    usuarioId,
-    escolaId,
+    cursoIdInt,
+    parseInt(usuarioId),
+    parseInt(escolaId),
     nomeUsuario,
     cpfUsuario,
     parseFloat(valorCurso) || 0,
@@ -1261,6 +1267,15 @@ app.put("/editar-matricula/:id", authenticateToken, (req, res) => {
     tipoPagamento
   } = req.body;
 
+  // Validar e converter IDs para integer
+  const cursoIdInt = parseInt(cursoId);
+  const usuarioIdInt = parseInt(usuarioId);
+  const escolaIdInt = parseInt(escolaId);
+  
+  if (isNaN(cursoIdInt) || isNaN(usuarioIdInt) || isNaN(escolaIdInt)) {
+    return res.status(400).json({ error: "IDs devem ser números válidos" });
+  }
+
   const query = `
     UPDATE cp_matriculas SET
       cp_mt_curso = $1,
@@ -1289,9 +1304,9 @@ app.put("/editar-matricula/:id", authenticateToken, (req, res) => {
   `;
 
   const values = [
-    cursoId,
-    usuarioId,
-    escolaId,
+    cursoIdInt,
+    usuarioIdInt,
+    escolaIdInt,
     nomeUsuario,
     cpfUsuario,
     parseFloat(valorCurso) || 0,
@@ -1310,7 +1325,7 @@ app.put("/editar-matricula/:id", authenticateToken, (req, res) => {
     contatoMae,
     diasSemana,
     tipoPagamento || "parcelado",
-    id
+    parseInt(id)
   ];
 
   db.query(query, values, (err, result) => {
@@ -1334,7 +1349,7 @@ app.put("/editar-matricula/:id", authenticateToken, (req, res) => {
 // ROTAS DE BUSCA - GET
 
 // Buscar matrículas
-app.get("/matriculas", (req, res) => {
+app.get("/matriculas", authenticateToken, (req, res) => {
   const query = `
     SELECT 
       m.*,
@@ -1348,6 +1363,7 @@ app.get("/matriculas", (req, res) => {
     LEFT JOIN cp_turmas t ON u.cp_turma_id = t.cp_tr_id
     LEFT JOIN cp_escolas e ON m.cp_mt_escola_id = e.cp_ec_id
     WHERE m.cp_mt_excluido = 0 OR m.cp_mt_excluido IS NULL
+    ORDER BY m.cp_mt_id ASC
   `;
 
   db.query(query, (err, results) => {

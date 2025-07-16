@@ -96,7 +96,12 @@ const CadastroMatricula = ({
 
     useEffect(() => {
         if (matriculaId) {
-            axios.get(`${API_BASE_URL}/matriculas/${matriculaId}`)
+            const token = localStorage.getItem("token");
+            axios.get(`${API_BASE_URL}/matriculas/${matriculaId}`, {
+                headers: { 
+                    "Authorization": `Bearer ${token}`
+                }
+            })
                 .then(response => {
                     if (response.data) {
                         const dadosMatricula = response.data;
@@ -152,7 +157,12 @@ const CadastroMatricula = ({
 
 
     const buscarDadosUsuario = (usuarioId) => {
-        axios.get(`${API_BASE_URL}/buscarusermatricula/${usuarioId}`)
+        const token = localStorage.getItem("token");
+        axios.get(`${API_BASE_URL}/buscarusermatricula/${usuarioId}`, {
+            headers: { 
+                "Authorization": `Bearer ${token}`
+            }
+        })
             .then(response => {
                 if (response.data) {
                     setDadosUsuario(response.data); // Atualiza os dados do usuário
@@ -193,8 +203,13 @@ const CadastroMatricula = ({
 
     useEffect(() => {
         if (!matriculaId) {
+            const token = localStorage.getItem("token");
             axios
-                .get(`${API_BASE_URL}/buscarusermatricula`)
+                .get(`${API_BASE_URL}/buscarusermatricula`, {
+                    headers: { 
+                        "Authorization": `Bearer ${token}`
+                    }
+                })
                 .then((response) => {
                     const schoolId = parseInt(localStorage.getItem("schoolId"));
 
@@ -284,7 +299,12 @@ const CadastroMatricula = ({
                     contatoMae: matriculaData.contatoMae,
                 };
 
-                const response = await axios.put(`${API_BASE_URL}/editar-matricula/${matriculaId}`, editObj);
+                const token = localStorage.getItem("token");
+                const response = await axios.put(`${API_BASE_URL}/editar-matricula/${matriculaId}`, editObj, {
+                    headers: { 
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
                 if (response.data?.msg === "Matrícula e parcelas atualizadas com sucesso") {
                     toast.success("Matrícula editada com sucesso");
                 } else {
@@ -315,7 +335,12 @@ const CadastroMatricula = ({
                     tipoPagamento: matriculaData.tipoPagamento
                 };
 
-                const response = await axios.post(`${API_BASE_URL}/cadastrar-matricula`, createObj);
+                const token = localStorage.getItem("token");
+                const response = await axios.post(`${API_BASE_URL}/cadastrar-matricula`, createObj, {
+                    headers: { 
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
                 if (response.data?.msg === "Matrícula cadastrada com sucesso") {
                     toast.success("Matrícula cadastrada com sucesso");
                     limparCampos();
@@ -336,7 +361,12 @@ const CadastroMatricula = ({
         const selectedUserId = e.target.value;
 
         if (selectedUserId) {
-            axios.get(`${API_BASE_URL}/buscarusermatricula/${selectedUserId}`)
+            const token = localStorage.getItem("token");
+            axios.get(`${API_BASE_URL}/buscarusermatricula/${selectedUserId}`, {
+                headers: { 
+                    "Authorization": `Bearer ${token}`
+                }
+            })
                 .then(response => {
                     if (response.data) {
                         const usuario = response.data;
@@ -446,7 +476,12 @@ const CadastroMatricula = ({
 
     const fetchCursos = async () => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/cursos`);
+            const token = localStorage.getItem("token");
+            const response = await axios.get(`${API_BASE_URL}/cursos`, {
+                headers: { 
+                    "Authorization": `Bearer ${token}`
+                }
+            });
             if (Array.isArray(response.data)) {
                 setCursos(response.data);
             } else {
@@ -464,7 +499,12 @@ const CadastroMatricula = ({
 
     const fetchEscolas = async () => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/escolas`);
+            const token = localStorage.getItem("token");
+            const response = await axios.get(`${API_BASE_URL}/escolas`, {
+                headers: { 
+                    "Authorization": `Bearer ${token}`
+                }
+            });
             if (Array.isArray(response.data)) {
                 setEscolas(response.data);
             } else {
@@ -565,7 +605,12 @@ const CadastroMatricula = ({
         // Buscar dados da escola se o usuário tiver uma escola associada
         if (usuario.cp_escola_id) {
             try {
-                const response = await axios.get(`${API_BASE_URL}/escolas/${usuario.cp_escola_id}`);
+                const token = localStorage.getItem("token");
+                const response = await axios.get(`${API_BASE_URL}/escolas/${usuario.cp_escola_id}`, {
+                    headers: { 
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
                 if (response.data) {
                     setDadosUsuario(prevDados => ({
                         ...prevDados,
@@ -878,7 +923,7 @@ const CadastroMatricula = ({
                                         >
                                             <option value="">Selecione o curso</option>
                                             {cursos.map((curso) => (
-                                                <option key={curso.cp_curso_id} value={curso.cp_curso_id}>
+                                                <option key={curso.cp_id_curso || curso.cp_curso_id} value={curso.cp_id_curso || curso.cp_curso_id}>
                                                     {curso.cp_nome_curso}
                                                 </option>
                                             ))}
