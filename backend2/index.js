@@ -970,6 +970,56 @@ app.get("/proxy-download", (req, res) => {
   });
 });
 
+// Rota para obter alunos por escola
+app.get("/escola/alunos/:escolaId", authenticateToken, (req, res) => {
+  const { escolaId } = req.params;
+
+  if (!escolaId) {
+    return res.status(400).json({ error: "Escola ID é obrigatório" });
+  }
+
+  const query = `
+    SELECT cp_id, cp_nome, cp_cpf, cp_email, cp_tipo_user, cp_escola_id, cp_turma_id
+    FROM cp_usuarios 
+    WHERE cp_escola_id = $1 
+    ORDER BY cp_nome ASC
+  `;
+
+  db.query(query, [escolaId], (err, result) => {
+    if (err) {
+      console.error("Erro ao buscar alunos da escola:", err);
+      return res.status(500).json({ error: "Erro interno do servidor" });
+    }
+
+    res.status(200).json(result.rows);
+  });
+});
+
+// Rota para obter alunos específicos de uma turma
+app.get("/turmas/:turmaId/alunos", authenticateToken, (req, res) => {
+  const { turmaId } = req.params;
+
+  if (!turmaId) {
+    return res.status(400).json({ error: "Turma ID é obrigatório" });
+  }
+
+  const query = `
+    SELECT cp_id, cp_nome, cp_cpf, cp_email, cp_tipo_user, cp_escola_id, cp_turma_id
+    FROM cp_usuarios 
+    WHERE cp_turma_id = $1 AND cp_tipo_user = 5
+    ORDER BY cp_nome ASC
+  `;
+
+  db.query(query, [turmaId], (err, result) => {
+    if (err) {
+      console.error("Erro ao buscar alunos da turma:", err);
+      return res.status(500).json({ error: "Erro interno do servidor" });
+    }
+
+    res.status(200).json(result.rows);
+  });
+});
+
 // ROTAS DE CADASTRO - POST
 
 // Cadastro de escola
@@ -1060,16 +1110,17 @@ app.post("/cursos", authenticateToken, (req, res) => {
 });
 
 // Cadastro de turma
-app.post("/turmas", authenticateToken, (req, res) => {
+app.post("/turmas", authenticateToken, async (req, res) => {
   const {
     cp_tr_nome,
-    cp_tr_descricao,
+    cp_tr_data,
     cp_tr_id_escola,
     cp_tr_id_professor,
     cp_tr_curso_id,
-    cp_tr_data_inicio,
-    cp_tr_data_fim,
-    cp_tr_horario,
+    cp_tr_dias_semana,
+    cp_tr_horario_inicio,
+    cp_tr_horario_fim,
+    cp_tr_alunos, // Array de IDs dos alunos selecionados
   } = req.body;
 
   if (!cp_tr_nome || !cp_tr_id_escola) {
@@ -1078,36 +1129,68 @@ app.post("/turmas", authenticateToken, (req, res) => {
       .json({ error: "Nome da turma e escola são obrigatórios" });
   }
 
-  const query = `
-    INSERT INTO cp_turmas (
-      cp_tr_nome, cp_tr_descricao, cp_tr_id_escola, cp_tr_id_professor,
-      cp_tr_curso_id, cp_tr_data_inicio, cp_tr_data_fim, cp_tr_horario
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
-  `;
+  try {
+    // Inserir a turma
+    const queryTurma = `
+      INSERT INTO cp_turmas (
+        cp_tr_nome, cp_tr_data, cp_tr_id_escola, cp_tr_id_professor,
+        cp_tr_curso_id, cp_tr_dias_semana, cp_tr_horario_inicio, cp_tr_horario_fim
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+    `;
 
-  const values = [
-    cp_tr_nome,
-    cp_tr_descricao,
-    cp_tr_id_escola,
-    cp_tr_id_professor,
-    cp_tr_curso_id,
-    cp_tr_data_inicio,
-    cp_tr_data_fim,
-    cp_tr_horario,
-  ];
+    const values = [
+      cp_tr_nome,
+      cp_tr_data,
+      cp_tr_id_escola,
+      cp_tr_id_professor,
+      cp_tr_curso_id,
+      cp_tr_dias_semana,
+      cp_tr_horario_inicio,
+      cp_tr_horario_fim,
+    ];
 
-  db.query(query, values, (err, result) => {
-    if (err) {
-      console.error("Erro ao cadastrar turma:", err);
-      return res.status(500).json({ error: "Erro ao cadastrar turma" });
+    const resultTurma = await new Promise((resolve, reject) => {
+      db.query(queryTurma, values, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+
+    const turmaId = resultTurma.rows[0].cp_tr_id;
+    console.log("Turma cadastrada com ID:", turmaId);
+
+    // Atualizar cp_turma_id para os alunos selecionados
+    if (Array.isArray(cp_tr_alunos) && cp_tr_alunos.length > 0) {
+      console.log("Atualizando alunos com IDs:", cp_tr_alunos);
+      
+      const queryUpdateAlunos = `
+        UPDATE cp_usuarios 
+        SET cp_turma_id = $1, updated_at = NOW() 
+        WHERE cp_id = ANY($2) AND cp_tipo_user = 5
+      `;
+
+      await new Promise((resolve, reject) => {
+        db.query(queryUpdateAlunos, [turmaId, cp_tr_alunos], (err, result) => {
+          if (err) reject(err);
+          else {
+            console.log(`${result.rowCount} alunos atualizados com a turma ${turmaId}`);
+            resolve(result);
+          }
+        });
+      });
     }
 
     res.status(201).json({
       success: true,
       message: "Turma cadastrada com sucesso",
-      turma: result.rows[0],
+      turma: resultTurma.rows[0],
+      alunosAtualizados: cp_tr_alunos ? cp_tr_alunos.length : 0,
     });
-  });
+
+  } catch (error) {
+    console.error("Erro ao cadastrar turma:", error);
+    res.status(500).json({ error: "Erro ao cadastrar turma" });
+  }
 });
 
 // Cadastro de matrícula
@@ -1268,7 +1351,7 @@ app.put("/editar-matricula/:id", authenticateToken, (req, res) => {
   const cursoIdInt = parseInt(cursoId);
   const usuarioIdInt = parseInt(usuarioId);
   const escolaIdInt = parseInt(escolaId);
-  
+
   if (isNaN(cursoIdInt) || isNaN(usuarioIdInt) || isNaN(escolaIdInt)) {
     return res.status(400).json({ error: "IDs devem ser números válidos" });
   }
@@ -1632,17 +1715,18 @@ app.put("/cursos/:id", authenticateToken, (req, res) => {
 });
 
 // Editar turma
-app.put("/turmas/:id", authenticateToken, (req, res) => {
+app.put("/turmas/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
   const {
     cp_tr_nome,
-    cp_tr_descricao,
+    cp_tr_data,
     cp_tr_id_escola,
     cp_tr_id_professor,
     cp_tr_curso_id,
-    cp_tr_data_inicio,
-    cp_tr_data_fim,
-    cp_tr_horario,
+    cp_tr_dias_semana,
+    cp_tr_horario_inicio,
+    cp_tr_horario_fim,
+    cp_tr_alunos, // Array de IDs dos alunos selecionados
   } = req.body;
 
   if (!cp_tr_nome || !cp_tr_id_escola) {
@@ -1651,42 +1735,86 @@ app.put("/turmas/:id", authenticateToken, (req, res) => {
       .json({ error: "Nome da turma e escola são obrigatórios" });
   }
 
-  const query = `
-    UPDATE cp_turmas 
-    SET cp_tr_nome = $1, cp_tr_descricao = $2, cp_tr_id_escola = $3, cp_tr_id_professor = $4,
-        cp_tr_curso_id = $5, cp_tr_data_inicio = $6, cp_tr_data_fim = $7, cp_tr_horario = $8,
-        updated_at = NOW()
-    WHERE cp_tr_id = $9 RETURNING *
-  `;
+  try {
+    // Atualizar dados da turma
+    const queryTurma = `
+      UPDATE cp_turmas 
+      SET cp_tr_nome = $1, cp_tr_data = $2, cp_tr_id_escola = $3, cp_tr_id_professor = $4,
+          cp_tr_curso_id = $5, cp_tr_dias_semana = $6, cp_tr_horario_inicio = $7, cp_tr_horario_fim = $8
+      WHERE cp_tr_id = $9 RETURNING *
+    `;
 
-  const values = [
-    cp_tr_nome,
-    cp_tr_descricao,
-    cp_tr_id_escola,
-    cp_tr_id_professor,
-    cp_tr_curso_id,
-    cp_tr_data_inicio,
-    cp_tr_data_fim,
-    cp_tr_horario,
-    id,
-  ];
+    const values = [
+      cp_tr_nome,
+      cp_tr_data,
+      cp_tr_id_escola,
+      cp_tr_id_professor,
+      cp_tr_curso_id,
+      cp_tr_dias_semana,
+      cp_tr_horario_inicio,
+      cp_tr_horario_fim,
+      id,
+    ];
 
-  db.query(query, values, (err, result) => {
-    if (err) {
-      console.error("Erro ao atualizar turma:", err);
-      return res.status(500).json({ error: "Erro ao atualizar turma" });
+    const resultTurma = await new Promise((resolve, reject) => {
+      db.query(queryTurma, values, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+
+    if (resultTurma.rowCount === 0) {
+      return res.status(404).json({ error: "Turma não encontrada" });
     }
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Turma não encontrada" });
+    // Remover todos os alunos desta turma primeiro
+    await new Promise((resolve, reject) => {
+      const queryRemoveAlunos = `
+        UPDATE cp_usuarios 
+        SET cp_turma_id = NULL, updated_at = NOW() 
+        WHERE cp_turma_id = $1 AND cp_tipo_user = 5
+      `;
+      db.query(queryRemoveAlunos, [id], (err, result) => {
+        if (err) reject(err);
+        else {
+          console.log(`${result.rowCount} alunos removidos da turma ${id}`);
+          resolve(result);
+        }
+      });
+    });
+
+    // Adicionar os alunos selecionados à turma
+    if (Array.isArray(cp_tr_alunos) && cp_tr_alunos.length > 0) {
+      console.log("Atualizando alunos com IDs:", cp_tr_alunos);
+      
+      const queryUpdateAlunos = `
+        UPDATE cp_usuarios 
+        SET cp_turma_id = $1, updated_at = NOW() 
+        WHERE cp_id = ANY($2) AND cp_tipo_user = 5
+      `;
+
+      await new Promise((resolve, reject) => {
+        db.query(queryUpdateAlunos, [id, cp_tr_alunos], (err, result) => {
+          if (err) reject(err);
+          else {
+            console.log(`${result.rowCount} alunos atualizados com a turma ${id}`);
+            resolve(result);
+          }
+        });
+      });
     }
 
     res.json({
       success: true,
       message: "Turma atualizada com sucesso",
-      turma: result.rows[0],
+      turma: resultTurma.rows[0],
+      alunosAtualizados: cp_tr_alunos ? cp_tr_alunos.length : 0,
     });
-  });
+
+  } catch (error) {
+    console.error("Erro ao atualizar turma:", error);
+    res.status(500).json({ error: "Erro ao atualizar turma" });
+  }
 });
 
 // Editar usuário
@@ -1723,8 +1851,7 @@ app.put("/usuarios/:id", authenticateToken, async (req, res) => {
 
   if (!cp_nome || !cp_email || !cp_login) {
     return res
-      .status(400)
-      .json({ error: "Campos obrigatórios: nome, email e login" });
+      .status(400).json({ error: "Campos obrigatórios: nome, email e login" });
   }
 
   try {
