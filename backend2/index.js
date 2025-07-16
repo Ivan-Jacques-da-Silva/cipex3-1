@@ -824,7 +824,7 @@ app.get("/cursos-migracao", (req, res) => {
 app.delete("/delete-curso/:cursoId", authenticateToken, (req, res) => {
   const { cursoId } = req.params;
 
-  const query = "DELETE FROM cp_cursos WHERE cp_curso_id = $1";
+  const query = "DELETE FROM cp_cursos WHERE cp_id_curso = $1";
 
   db.query(query, [cursoId], (err, result) => {
     if (err) {
@@ -1039,7 +1039,7 @@ app.post("/cursos", authenticateToken, (req, res) => {
   }
 
   const query = `
-    INSERT INTO cp_cursos (cp_nome, cp_descricao, cp_preco, cp_duracao_meses)
+    INSERT INTO cp_cursos (cp_nome_curso, cp_descricao, cp_preco, cp_duracao_meses)
     VALUES ($1, $2, $3, $4) RETURNING *
   `;
 
@@ -1195,11 +1195,10 @@ app.post("/cadastrar-matricula", authenticateToken, (req, res) => {
       cp_mt_curso, cp_mt_usuario_id, cp_mt_escola_id, cp_mt_nome_usuario,
       cp_mt_cpf_usuario, cp_mt_valor_curso, cp_mt_numero_parcelas,
       cp_mt_primeira_data_pagamento, cp_mt_status, cp_mt_nivel_idioma,
-      cp_mt_horario_inicio, cp_mt_horario_fim, cp_mt_local_nascimento,
-      cp_mt_escolaridade, cp_mt_rede_social, cp_mt_nome_pai,
+      cp_mt_local_nascimento, cp_mt_escolaridade, cp_mt_rede_social, cp_mt_nome_pai,
       cp_mt_contato_pai, cp_mt_nome_mae, cp_mt_contato_mae,
       cp_mt_dias_semana, cp_mt_tipo_pagamento, created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW(), NOW()) RETURNING *
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), NOW()) RETURNING *
   `;
 
   const values = [
@@ -1213,8 +1212,6 @@ app.post("/cadastrar-matricula", authenticateToken, (req, res) => {
     primeiraDataPagamento,
     status || "ativo",
     nivelIdioma,
-    horarioInicio,
-    horarioFim,
     localNascimento,
     escolaridade,
     redeSocial,
@@ -1288,19 +1285,17 @@ app.put("/editar-matricula/:id", authenticateToken, (req, res) => {
       cp_mt_primeira_data_pagamento = $8,
       cp_mt_status = $9,
       cp_mt_nivel_idioma = $10,
-      cp_mt_horario_inicio = $11,
-      cp_mt_horario_fim = $12,
-      cp_mt_local_nascimento = $13,
-      cp_mt_escolaridade = $14,
-      cp_mt_rede_social = $15,
-      cp_mt_nome_pai = $16,
-      cp_mt_contato_pai = $17,
-      cp_mt_nome_mae = $18,
-      cp_mt_contato_mae = $19,
-      cp_mt_dias_semana = $20,
-      cp_mt_tipo_pagamento = $21,
+      cp_mt_local_nascimento = $11,
+      cp_mt_escolaridade = $12,
+      cp_mt_rede_social = $13,
+      cp_mt_nome_pai = $14,
+      cp_mt_contato_pai = $15,
+      cp_mt_nome_mae = $16,
+      cp_mt_contato_mae = $17,
+      cp_mt_dias_semana = $18,
+      cp_mt_tipo_pagamento = $19,
       updated_at = NOW()
-    WHERE cp_mt_id = $22 RETURNING *
+    WHERE cp_mt_id = $20 RETURNING *
   `;
 
   const values = [
@@ -1314,8 +1309,6 @@ app.put("/editar-matricula/:id", authenticateToken, (req, res) => {
     primeiraDataPagamento,
     status || "ativo",
     nivelIdioma,
-    horarioInicio,
-    horarioFim,
     localNascimento,
     escolaridade,
     redeSocial,
@@ -1563,7 +1556,7 @@ app.put("/escolas/:id", authenticateToken, (req, res) => {
         cp_ec_data_cadastro = $8,
         cp_ec_descricao = $9,
         updated_at = NOW()
-    WHERE cp_id = $10 RETURNING *
+    WHERE cp_ec_id = $10 RETURNING *
   `;
 
   const values = [
@@ -1608,8 +1601,8 @@ app.put("/cursos/:id", authenticateToken, (req, res) => {
 
   const query = `
     UPDATE cp_cursos 
-    SET cp_nome = $1, cp_descricao = $2, cp_preco = $3, cp_duracao_meses = $4, updated_at = NOW()
-    WHERE cp_id = $5 RETURNING *
+    SET cp_nome_curso = $1, cp_descricao = $2, cp_preco = $3, cp_duracao_meses = $4, updated_at = NOW()
+    WHERE cp_id_curso = $5 RETURNING *
   `;
 
   const values = [
@@ -1846,7 +1839,7 @@ app.put("/usuarios/:id", authenticateToken, async (req, res) => {
 app.delete("/escolas/:id", authenticateToken, (req, res) => {
   const { id } = req.params;
 
-  const query = "UPDATE cp_escolas SET cp_ec_excluido = 1 WHERE cp_id = $1";
+  const query = "UPDATE cp_escolas SET cp_ec_excluido = 1 WHERE cp_ec_id = $1";
 
   db.query(query, [id], (err, result) => {
     if (err) {

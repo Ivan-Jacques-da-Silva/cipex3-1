@@ -105,7 +105,7 @@ const CadastroMatricula = ({
                 .then(response => {
                     if (response.data) {
                         const dadosMatricula = response.data;
-                        
+
                         // Mapear os campos corretamente do schema
                         setMatriculaData(prevData => ({
                             ...prevData,
@@ -128,7 +128,8 @@ const CadastroMatricula = ({
                             contatoPai: dadosMatricula.cp_mt_contato_pai,
                             nomeMae: dadosMatricula.cp_mt_nome_mae,
                             contatoMae: dadosMatricula.cp_mt_contato_mae,
-                            diasSemana: dadosMatricula.cp_mt_dias_semana
+                            diasSemana: dadosMatricula.cp_mt_dias_semana,
+                            tipoPagamento: dadosMatricula.cp_mt_tipo_pagamento || 'parcelado'
                         }));
 
                         // Buscar dados do usuário usando os nomes corretos da API
@@ -232,7 +233,15 @@ const CadastroMatricula = ({
         const valorCurso = parseFloat(matriculaData.valorCurso);
         const numeroParcelas = parseInt(matriculaData.numeroParcelas, 10);
 
-        if (!isNaN(valorCurso) && !isNaN(numeroParcelas) && numeroParcelas > 0) {
+        if (matriculaData.tipoPagamento === 'mensalidade') {
+            // Para mensalidade, o valor da parcela é igual ao valor do curso
+            setMatriculaData(prevData => ({
+                ...prevData,
+                valorParcela: valorCurso.toFixed(2),
+                numeroParcelas: 1
+            }));
+        } else if (!isNaN(valorCurso) && !isNaN(numeroParcelas) && numeroParcelas > 0) {
+            // Para parcelamento, divide o valor total pelo número de parcelas
             const valorParcela = (valorCurso / numeroParcelas).toFixed(2);
             setMatriculaData(prevData => ({
                 ...prevData,
@@ -243,7 +252,7 @@ const CadastroMatricula = ({
 
     useEffect(() => {
         calcularValorParcela();
-    }, [matriculaData.valorCurso, matriculaData.numeroParcelas]);
+    }, [matriculaData.valorCurso, matriculaData.numeroParcelas, matriculaData.tipoPagamento]);
 
 
     useEffect(() => {
@@ -252,7 +261,7 @@ const CadastroMatricula = ({
         }
     }, [matriculaData.valorCurso]);
 
-    
+
 
 
 
@@ -297,6 +306,7 @@ const CadastroMatricula = ({
                     contatoPai: matriculaData.contatoPai,
                     nomeMae: matriculaData.nomeMae,
                     contatoMae: matriculaData.contatoMae,
+                    tipoPagamento: matriculaData.tipoPagamento
                 };
 
                 const token = localStorage.getItem("token");
@@ -384,7 +394,6 @@ const CadastroMatricula = ({
                             whatsapp: usuario.cp_whatsapp,
                             telefone: usuario.cp_telefone,
                             email: usuario.cp_email,
-                            // escolaridade: usuario.cp_escolaridade,
                             escolaId: usuario.cp_escola_id
                         }));
                     } else {
@@ -601,7 +610,7 @@ const CadastroMatricula = ({
 
     const handleUsuarioSelect = async (usuario) => {
         setDadosUsuario(usuario);
-        
+
         // Buscar dados da escola se o usuário tiver uma escola associada
         if (usuario.cp_escola_id) {
             try {
@@ -951,48 +960,7 @@ const CadastroMatricula = ({
                                             ))}
                                         </select>
                                     </Col>
-                                    <Col md={12}>
-                                        <label htmlFor="horarioInicio">Horário:</label>
-                                        <Row>
-                                            <Col xs={5}>
-                                                <InputMask
-                                                    type="text"
-                                                    id="horarioInicio"
-                                                    name="horarioInicio"
-                                                    mask="99:99"
-                                                    value={matriculaData.horarioInicio}
-                                                    onChange={(e) =>
-                                                        setMatriculaData({
-                                                            ...matriculaData,
-                                                            horarioInicio: e.target.value,
-                                                        })
-                                                    }
-                                                    className="form-control"
-                                                    placeholder="Horário de início"
-                                                />
-                                            </Col>
-                                            <Col xs={2}>
-                                                <span className="horario-span">até</span>
-                                            </Col>
-                                            <Col xs={5}>
-                                                <InputMask
-                                                    type="text"
-                                                    id="horarioFim"
-                                                    name="horarioFim"
-                                                    mask="99:99"
-                                                    value={matriculaData.horarioFim}
-                                                    onChange={(e) =>
-                                                        setMatriculaData({
-                                                            ...matriculaData,
-                                                            horarioFim: e.target.value,
-                                                        })
-                                                    }
-                                                    className="form-control"
-                                                    placeholder="Horário de término"
-                                                />
-                                            </Col>
-                                        </Row>
-                                    </Col>
+                                    
                                     <Col md={12}>
                                         <label htmlFor="status">Status:</label>
                                         <select
@@ -1010,44 +978,111 @@ const CadastroMatricula = ({
                                         </select>
                                     </Col>
                                     <Col md={12}>
-                                        <label htmlFor="valorCurso">Valor do Curso:</label>
-                                        <input
-                                            type="number"
-                                            id="valorCurso"
-                                            name="valorCurso"
-                                            value={matriculaData.valorCurso}
-                                            onChange={(e) =>
+                                        <label htmlFor="tipoPagamento">Tipo de Pagamento:</label>
+                                        <select
+                                            id="tipoPagamento"
+                                            name="tipoPagamento"
+                                            value={matriculaData.tipoPagamento}
+                                            onChange={(e) => {
+                                                const tipoSelecionado = e.target.value;
                                                 setMatriculaData({
                                                     ...matriculaData,
-                                                    valorCurso: e.target.value,
-                                                })
-                                            }
+                                                    tipoPagamento: tipoSelecionado,
+                                                    numeroParcelas: tipoSelecionado === 'mensalidade' ? 1 : matriculaData.numeroParcelas,
+                                                    valorParcela: tipoSelecionado === 'mensalidade' ? matriculaData.valorCurso : matriculaData.valorParcela
+                                                });
+                                            }}
                                             className="form-control"
-                                            placeholder="Valor do Curso"
-                                            required
-                                        />
-                                    </Col>
-                                    <Col md={12}>
-                                        <label htmlFor="numeroParcelas">Número de Parcelas:</label>
-                                        <select
-                                            id="numeroParcelas"
-                                            name="numeroParcelas"
-                                            value={matriculaData.numeroParcelas || ''}
-                                            onChange={handleNumeroParcelasChange}
-                                            className="form-control"
-                                            disabled={!matriculaData.valorCurso}
                                             required
                                         >
-                                            <option value="">Selecione o número de parcelas</option>
-                                            {[...Array(13)].map((_, i) => (
-                                                <option key={i + 1} value={i + 1}>
-                                                    {i + 1}x
-                                                </option>
-                                            ))}
+                                            <option value="parcelado">Parcelado</option>
+                                            <option value="mensalidade">Mensalidade</option>
                                         </select>
                                     </Col>
+
+                                    {matriculaData.tipoPagamento === 'parcelado' ? (
+                                        <>
+                                            <Col md={12}>
+                                                <label htmlFor="valorCurso">Valor Total do Curso:</label>
+                                                <input
+                                                    type="number"
+                                                    id="valorCurso"
+                                                    name="valorCurso"
+                                                    value={matriculaData.valorCurso}
+                                                    onChange={(e) =>
+                                                        setMatriculaData({
+                                                            ...matriculaData,
+                                                            valorCurso: e.target.value,
+                                                        })
+                                                    }
+                                                    className="form-control"
+                                                    placeholder="Valor Total do Curso"
+                                                    required
+                                                />
+                                            </Col>
+                                            <Col md={12}>
+                                                <label htmlFor="numeroParcelas">Número de Parcelas:</label>
+                                                <select
+                                                    id="numeroParcelas"
+                                                    name="numeroParcelas"
+                                                    value={matriculaData.numeroParcelas || ''}
+                                                    onChange={handleNumeroParcelasChange}
+                                                    className="form-control"
+                                                    disabled={!matriculaData.valorCurso}
+                                                    required
+                                                >
+                                                    <option value="">Selecione o número de parcelas</option>
+                                                    {[...Array(13)].map((_, i) => (
+                                                        <option key={i + 1} value={i + 1}>
+                                                            {i + 1}x
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </Col>
+                                            <Col md={12}>
+                                                <label htmlFor="valorParcela">Valor da Parcela:</label>
+                                                <input
+                                                    type="text"
+                                                    id="valorParcela"
+                                                    name="valorParcela"
+                                                    value={Number(matriculaData.valorParcela).toLocaleString(
+                                                        "pt-BR",
+                                                        {
+                                                            minimumFractionDigits: 2,
+                                                        }
+                                                    )}
+                                                    className="form-control"
+                                                    placeholder="Valor da Parcela"
+                                                    readOnly
+                                                />
+                                            </Col>
+                                        </>
+                                    ) : (
+                                        <Col md={12}>
+                                            <label htmlFor="valorMensalidade">Valor da Mensalidade:</label>
+                                            <input
+                                                type="number"
+                                                id="valorMensalidade"
+                                                name="valorMensalidade"
+                                                value={matriculaData.valorCurso}
+                                                onChange={(e) =>
+                                                    setMatriculaData({
+                                                        ...matriculaData,
+                                                        valorCurso: e.target.value,
+                                                        valorParcela: e.target.value
+                                                    })
+                                                }
+                                                className="form-control"
+                                                placeholder="Valor da Mensalidade"
+                                                required
+                                            />
+                                        </Col>
+                                    )}
+
                                     <Col md={12}>
-                                        <label htmlFor="primeiraParcela">Primeira Parcela:</label>
+                                        <label htmlFor="primeiraParcela">
+                                            {matriculaData.tipoPagamento === 'mensalidade' ? 'Primeira Mensalidade:' : 'Primeira Parcela:'}
+                                        </label>
                                         <input
                                             type="date"
                                             id="primeiraParcela"
@@ -1061,23 +1096,6 @@ const CadastroMatricula = ({
                                             }
                                             className="form-control"
                                             required
-                                        />
-                                    </Col>
-                                    <Col md={12}>
-                                        <label htmlFor="valorParcela">Valor da Parcela:</label>
-                                        <input
-                                            type="text"
-                                            id="valorParcela"
-                                            name="valorParcela"
-                                            value={Number(matriculaData.valorParcela).toLocaleString(
-                                                "pt-BR",
-                                                {
-                                                    minimumFractionDigits: 2,
-                                                }
-                                            )}
-                                            className="form-control"
-                                            placeholder="Valor da Parcela"
-                                            readOnly
                                         />
                                     </Col>
                                 </Row>

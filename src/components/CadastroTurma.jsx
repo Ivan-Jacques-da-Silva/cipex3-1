@@ -15,6 +15,9 @@ const CadastroTurmaModal = ({ turmaID }) => {
     cp_tr_id_escola: "",
     cp_tr_alunos: [],
     cp_tr_curso_id: "",
+    cp_tr_dias_semana: [],
+    cp_tr_horario_inicio: "",
+    cp_tr_horario_fim: "",
   });
   useEffect(() => {
     console.log("turmaID recebido:", turmaID);
@@ -162,7 +165,10 @@ const CadastroTurmaModal = ({ turmaID }) => {
             cp_tr_id_professor: String(dadosTurma.cp_tr_id_professor || ""),
             cp_tr_id_escola: String(dadosTurma.cp_tr_id_escola || ""),
             cp_tr_curso_id: String(dadosTurma.cp_tr_curso_id || ""),
-            cp_tr_alunos: []
+            cp_tr_alunos: [],
+            cp_tr_dias_semana: dadosTurma.cp_tr_dias_semana ? dadosTurma.cp_tr_dias_semana.split(",") : [],
+            cp_tr_horario_inicio: dadosTurma.cp_tr_horario_inicio || "",
+            cp_tr_horario_fim: dadosTurma.cp_tr_horario_fim || "",
           };
 
           console.log("Curso selecionado:", cursoSelecionado);
@@ -308,6 +314,17 @@ const CadastroTurmaModal = ({ turmaID }) => {
     });
   };
 
+  const handleDiasSemanaChange = (e, dia) => {
+    const isChecked = e.target.checked;
+    setTurmaData((prevData) => {
+      const updatedDias = isChecked
+        ? [...prevData.cp_tr_dias_semana, dia]
+        : prevData.cp_tr_dias_semana.filter((d) => d !== dia);
+
+      return { ...prevData, cp_tr_dias_semana: updatedDias };
+    });
+  };
+
   
 
   const handleSubmit = async (e) => {
@@ -325,35 +342,35 @@ const CadastroTurmaModal = ({ turmaID }) => {
 
       let response;
 
+      // Dados comuns para cadastro e edição
+      const dadosComuns = {
+        cp_tr_nome: turmaData.cp_tr_nome,
+        cp_tr_data: turmaData.cp_tr_data,
+        cp_tr_id_escola: parseInt(turmaData.cp_tr_id_escola),
+        cp_tr_id_professor: parseInt(turmaData.cp_tr_id_professor),
+        cp_tr_curso_id: parseInt(turmaData.cp_tr_curso_id),
+        cp_tr_dias_semana: turmaData.cp_tr_dias_semana.join(","),
+        cp_tr_horario_inicio: turmaData.cp_tr_horario_inicio,
+        cp_tr_horario_fim: turmaData.cp_tr_horario_fim
+      };
+
       if (turmaID) {
         // Atualizar turma existente
-        response = await axios.put(`${API_BASE_URL}/turmas/${turmaID}`, {
-                cp_tr_nome: turmaData.cp_tr_nome,
-                cp_tr_data: turmaData.cp_tr_data,
-                cp_tr_id_escola: parseInt(turmaData.cp_tr_id_escola),
-                cp_tr_id_professor: parseInt(turmaData.cp_tr_id_professor),
-                cp_tr_curso_id: parseInt(turmaData.cp_tr_curso_id)
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+        response = await axios.put(`${API_BASE_URL}/turmas/${turmaID}`, dadosComuns, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
         toast.success("Turma atualizada com sucesso!");
       } else {
         // Criar nova turma
-         response = await axios.post(`${API_BASE_URL}/turmas`, {
-                cp_tr_nome: turmaData.cp_tr_nome,
-                cp_tr_data: turmaData.cp_tr_data,
-                cp_tr_id_escola: parseInt(turmaData.cp_tr_id_escola),
-                cp_tr_id_professor: parseInt(turmaData.cp_tr_id_professor),
-                cp_tr_curso_id: parseInt(turmaData.cp_tr_curso_id)
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+        response = await axios.post(`${API_BASE_URL}/turmas`, dadosComuns, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
         toast.success("Turma cadastrada com sucesso!");
         // Limpar campos após cadastrar
         setTurmaData({
@@ -362,7 +379,10 @@ const CadastroTurmaModal = ({ turmaID }) => {
           cp_tr_id_professor: "",
           cp_tr_id_escola: "",
           cp_tr_curso_id: "",
-          cp_tr_alunos: []
+          cp_tr_alunos: [],
+          cp_tr_dias_semana: [],
+          cp_tr_horario_inicio: "",
+          cp_tr_horario_fim: "",
         });
       }
 
@@ -430,6 +450,57 @@ const CadastroTurmaModal = ({ turmaID }) => {
                         </option>
                       ))}
                     </select>
+                  </Col>
+                  
+                  <Col md={6}>
+                    <label htmlFor="cp_tr_horario_inicio">Horário Início:</label>
+                    <input
+                      type="time"
+                      id="cp_tr_horario_inicio"
+                      name="cp_tr_horario_inicio"
+                      value={turmaData.cp_tr_horario_inicio}
+                      onChange={handleChange}
+                      className="form-control"
+                    />
+                  </Col>
+                  
+                  <Col md={6}>
+                    <label htmlFor="cp_tr_horario_fim">Horário Fim:</label>
+                    <input
+                      type="time"
+                      id="cp_tr_horario_fim"
+                      name="cp_tr_horario_fim"
+                      value={turmaData.cp_tr_horario_fim}
+                      onChange={handleChange}
+                      className="form-control"
+                    />
+                  </Col>
+
+                  <Col md={12}>
+                    <label>Dias da Semana:</label>
+                    <div className="d-flex flex-wrap gap-2 mt-2">
+                      {[
+                        { value: 'segunda', label: 'Segunda' },
+                        { value: 'terca', label: 'Terça' },
+                        { value: 'quarta', label: 'Quarta' },
+                        { value: 'quinta', label: 'Quinta' },
+                        { value: 'sexta', label: 'Sexta' },
+                        { value: 'sabado', label: 'Sábado' }
+                      ].map((dia) => (
+                        <div key={dia.value} className="form-check me-3 mb-2">
+                          <input
+                            type="checkbox"
+                            id={`dia_${dia.value}`}
+                            checked={turmaData.cp_tr_dias_semana.includes(dia.value)}
+                            onChange={(e) => handleDiasSemanaChange(e, dia.value)}
+                            className="form-check-input"
+                          />
+                          <label htmlFor={`dia_${dia.value}`} className="form-check-label">
+                            {dia.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                   </Col>
                 </Row>
               </div>
