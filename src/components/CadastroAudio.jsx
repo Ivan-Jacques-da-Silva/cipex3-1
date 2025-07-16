@@ -68,7 +68,7 @@ const CadastroAudio = ({ audioID }) => {
     { value: "ASPEKTE B2", label: "[ALE] - ASPEKTE B2" },
     { value: "DAF+", label: "[ALE] - DAF+" },
     { value: "RUSSO A1", label: "[RUS] RUSSO A1" },
-    
+
     // { value: "TESTE", label: "[TT] - TESTE" }
   ];
 
@@ -374,7 +374,7 @@ const CadastroAudio = ({ audioID }) => {
                             type="file"
                             hidden
                             name="cp_audio"
-                            accept="audio/*"
+                            accept=".mp3,audio/mpeg"
                             multiple
                             onChange={handleFileChange}
                           />
@@ -413,7 +413,7 @@ const CadastroAudio = ({ audioID }) => {
                             type="file"
                             hidden
                             name="cp_pdfs"
-                            accept="application/pdf"
+                            accept=".pdf,application/pdf"
                             multiple
                             onChange={handleFileChange}
                           />
