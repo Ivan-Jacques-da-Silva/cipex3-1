@@ -101,6 +101,16 @@ const CadastroUsuarioModal = ({ userId }) => {
         }
     }, []);
 
+    // useEffect para marcar checkbox de empresa quando há dados preenchidos na edição
+    useEffect(() => {
+        if (userId && userData) {
+            const temDadosEmpresa = userData.cp_cnpj || userData.cp_ie || userData.cp_empresaatuacao || userData.cp_profissao;
+            if (temDadosEmpresa) {
+                setIsEmpresa(true);
+            }
+        }
+    }, [userId, userData.cp_cnpj, userData.cp_ie, userData.cp_empresaatuacao, userData.cp_profissao]);
+
 
     const getFilteredOptions = () => {
         const options = [
@@ -288,11 +298,15 @@ const CadastroUsuarioModal = ({ userId }) => {
                                                 required={!userId}
                                             />
                                             <Button
-                                                variant="secondary"
+                                                variant="outline-secondary"
                                                 onClick={() => setShowPassword(!showPassword)}
-                                                className="input-group-text"
+                                                className="input-group-text bg-white border-start-0"
+                                                style={{ 
+                                                    color: '#6c757d',
+                                                    border: '1px solid #ced4da'
+                                                }}
                                             >
-                                                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                                                {showPassword ? <FaEye /> : <FaEyeSlash />}
                                             </Button>
                                         </div>
                                     </Col>

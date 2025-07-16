@@ -55,6 +55,8 @@ const CadastroMatricula = ({
         horarioFim: "",
         nivelIdioma: "",
         primeiraDataPagamento: "",
+        diasSemana: "",
+        tipoPagamento: "parcelado",
     });
 
     const limparCampos = () => {
@@ -194,17 +196,19 @@ const CadastroMatricula = ({
             axios
                 .get(`${API_BASE_URL}/buscarusermatricula`)
                 .then((response) => {
-                    const schoolId = localStorage.getItem("schoolId");
+                    const schoolId = parseInt(localStorage.getItem("schoolId"));
 
-                    const usuariosFiltrados = response.data.filter(usuario =>
-                        usuario.cp_excluido !== 1 && usuario.cp_escola_id == schoolId
+                    // Filtrar apenas alunos (cp_tipo_user = 5) da mesma escola
+                    const alunosFiltrados = response.data.filter(usuario =>
+                        usuario.cp_excluido !== 1 && 
+                        parseInt(usuario.cp_escola_id) === schoolId
                     );
 
-                    setUsuarios(usuariosFiltrados);
-                    setFilteredUsuarios(usuariosFiltrados);
+                    setUsuarios(alunosFiltrados);
+                    setFilteredUsuarios(alunosFiltrados);
                 })
                 .catch((error) => {
-                    console.error("Erro ao buscar usuários:", error);
+                    console.error("Erro ao buscar alunos:", error);
                 });
         }
     }, [matriculaId]);
@@ -288,8 +292,27 @@ const CadastroMatricula = ({
                 }
             } else {
                 const createObj = {
-                    ...matriculaData,
+                    cursoId: matriculaData.cursoId,
+                    usuarioId: matriculaData.usuarioId,
+                    escolaId: matriculaData.escolaId,
+                    nomeUsuario: matriculaData.nomeUsuario,
+                    cpfUsuario: matriculaData.cpfUsuario,
+                    valorCurso: matriculaData.valorCurso,
+                    numeroParcelas: matriculaData.numeroParcelas,
                     primeiraDataPagamento: formatarData(matriculaData.primeiraDataPagamento),
+                    status: matriculaData.status,
+                    nivelIdioma: matriculaData.nivelIdioma,
+                    horarioInicio: matriculaData.horarioInicio,
+                    horarioFim: matriculaData.horarioFim,
+                    localNascimento: matriculaData.localNascimento,
+                    escolaridade: matriculaData.escolaridade,
+                    redeSocial: matriculaData.redeSocial,
+                    nomePai: matriculaData.nomePai,
+                    contatoPai: matriculaData.contatoPai,
+                    nomeMae: matriculaData.nomeMae,
+                    contatoMae: matriculaData.contatoMae,
+                    diasSemana: matriculaData.diasSemana,
+                    tipoPagamento: matriculaData.tipoPagamento
                 };
 
                 const response = await axios.post(`${API_BASE_URL}/cadastrar-matricula`, createObj);
@@ -536,8 +559,26 @@ const CadastroMatricula = ({
 
 
 
-    const handleUsuarioSelect = (usuario) => {
+    const handleUsuarioSelect = async (usuario) => {
         setDadosUsuario(usuario);
+        
+        // Buscar dados da escola se o usuário tiver uma escola associada
+        if (usuario.cp_escola_id) {
+            try {
+                const response = await axios.get(`${API_BASE_URL}/escolas/${usuario.cp_escola_id}`);
+                if (response.data) {
+                    setDadosUsuario(prevDados => ({
+                        ...prevDados,
+                        ...usuario,
+                        escola_nome: response.data.cp_ec_nome || response.data.cp_nome
+                    }));
+                }
+            } catch (error) {
+                console.error("Erro ao buscar dados da escola:", error);
+                // Continua sem os dados da escola se houver erro
+            }
+        }
+
         setMatriculaData(prevMatriculaData => ({
             ...prevMatriculaData,
             usuarioId: usuario.cp_id,
@@ -546,13 +587,13 @@ const CadastroMatricula = ({
             dataNascimento: usuario.cp_datanascimento,
             profissao: usuario.cp_profissao,
             estadoCivil: usuario.cp_estadocivil,
-            endereco: `${usuario.cp_end_cidade_estado}, ${usuario.cp_end_rua}, ${usuario.cp_end_num}`,
+            endereco: `${usuario.cp_end_cidade_estado || ''}, ${usuario.cp_end_rua || ''}, ${usuario.cp_end_num || ''}`,
             whatsapp: usuario.cp_whatsapp,
             telefone: usuario.cp_telefone,
             email: usuario.cp_email,
             escolaId: usuario.cp_escola_id,
         }));
-        closeUserSearchModal(); // Fecha o modal após selecionar
+        closeUserSearchModal();
     };
 
     return (
@@ -570,14 +611,14 @@ const CadastroMatricula = ({
                                     {matriculaId ? (
                                         // Edição: Apenas exibe os dados sem permitir edição
                                         <Col md={12}>
-                                            <label htmlFor="nomeUsuario">Usuário:</label>
+                                            <label htmlFor="nomeUsuario">Aluno:</label>
                                             <input
                                                 type="text"
                                                 id="nomeUsuario"
                                                 name="nomeUsuario"
                                                 value={matriculaData.nomeUsuario || ""}
                                                 className="form-control"
-                                                placeholder="Nome do usuário"
+                                                placeholder="Nome do aluno"
                                                 required
                                                 readOnly
                                             />
@@ -585,7 +626,7 @@ const CadastroMatricula = ({
                                     ) : (
                                         // Cadastro: Permite pesquisa ao clicar
                                         <Col md={12}>
-                                            <label htmlFor="nomeUsuario">Nome do Usuário:</label>
+                                            <label htmlFor="nomeUsuario">Nome do Aluno:</label>
                                             <input
                                                 type="text"
                                                 id="nomeUsuario"
@@ -602,7 +643,7 @@ const CadastroMatricula = ({
 
 
                                     <Col md={12}>
-                                        <label htmlFor="cpfUsuario">CPF do Usuário:</label>
+                                        <label htmlFor="cpfUsuario">CPF do Aluno:</label>
                                         <InputMask
                                             type="text"
                                             id="cpfUsuario"
@@ -706,11 +747,14 @@ const CadastroMatricula = ({
                                             id="escolaId"
                                             name="escolaId"
                                             value={
+                                                dadosUsuario.escola_nome || 
                                                 escolas.find(
                                                     (escola) => escola.cp_id === dadosUsuario.cp_escola_id || escola.cp_ec_id === dadosUsuario.cp_escola_id
-                                                )?.cp_ec_nome || escolas.find(
+                                                )?.cp_ec_nome || 
+                                                escolas.find(
                                                     (escola) => escola.cp_id === dadosUsuario.cp_escola_id || escola.cp_ec_id === dadosUsuario.cp_escola_id
-                                                )?.cp_nome || ""
+                                                )?.cp_nome || 
+                                                "Escola não encontrada"
                                             }
                                             className="form-control"
                                             placeholder="Escola"
@@ -1085,45 +1129,62 @@ const CadastroMatricula = ({
 
                 </div>
             </form>
-            <Modal show={showUserSearchModal} onHide={closeUserSearchModal} centered animation={false}>
+            <Modal show={showUserSearchModal} onHide={closeUserSearchModal} centered animation={false} size="lg">
                 <Modal.Header closeButton>
-                    <Modal.Title>Pesquisar Usuário</Modal.Title>
+                    <Modal.Title>Pesquisar Aluno</Modal.Title>
                 </Modal.Header>
-                <Modal.Body>
+                <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
                     <input
                         type="text"
                         id="usuarioSearch"
                         name="usuarioSearch"
                         onChange={handleUsuarioSearch}
-                        className="form-control"
-                        placeholder="Digite para pesquisar"
+                        className="form-control mb-3"
+                        placeholder="Digite o nome do aluno para pesquisar..."
                         ref={inputSearchRef}
                         onKeyDown={(e) => {
                             if (e.key === "Enter" && filteredUsuarios.length > 0) {
-                                handleUsuarioSelect(filteredUsuarios[0]); // Seleciona o primeiro da lista
-                                closeUserSearchModal(); // Fecha o modal
+                                handleUsuarioSelect(filteredUsuarios[0]);
+                                closeUserSearchModal();
                             }
                         }}
                     />
-                    <ul className="list-group mt-2">
+                    <div style={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid #dee2e6', borderRadius: '0.375rem' }}>
                         {filteredUsuarios.length > 0 ? (
                             filteredUsuarios.map((usuario) => (
-                                <li
+                                <div
                                     key={usuario.cp_id}
-                                    className="list-group-item list-group-item-action"
+                                    className="p-2 border-bottom"
                                     onClick={() => {
                                         handleUsuarioSelect(usuario);
                                         closeUserSearchModal();
                                     }}
-                                    style={{ cursor: "pointer" }}
+                                    style={{ 
+                                        cursor: "pointer",
+                                        transition: 'background-color 0.2s',
+                                        ':hover': { backgroundColor: '#f8f9fa' }
+                                    }}
+                                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                                 >
-                                    {usuario.cp_nome} - {usuario.cp_cpf}
-                                </li>
+                                    <div>
+                                        <h6 className="mb-1" style={{ fontSize: '0.95rem' }}>{usuario.cp_nome}</h6>
+                                        <small className="text-muted">CPF: {usuario.cp_cpf}</small>
+                                    </div>
+                                </div>
                             ))
                         ) : (
-                            <li className="list-group-item">Nenhum usuário encontrado</li>
+                            <div className="text-center p-4 text-muted">
+                                <i className="fas fa-search mb-2" style={{ fontSize: '2rem' }}></i>
+                                <p>Nenhum aluno encontrado</p>
+                            </div>
                         )}
-                    </ul>
+                    </div>
+                    {filteredUsuarios.length > 0 && (
+                        <small className="text-muted mt-2 d-block">
+                            {filteredUsuarios.length} aluno(s) encontrado(s). Clique para selecionar.
+                        </small>
+                    )}
                 </Modal.Body>
             </Modal>
             <Modal show={showConfirmModal} onHide={fecharModalConfirmacao} centered>

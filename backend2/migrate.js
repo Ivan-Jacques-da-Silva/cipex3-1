@@ -122,25 +122,29 @@ async function migrateEscolas() {
 
     for (const escola of escolas) {
       try {
-        await prisma.cp_escolas.create({
-          data: {
-            cp_ec_id: escola.cp_ec_id,
-            cp_ec_nome: escola.cp_ec_nome || "",
-            cp_ec_data_cadastro: escola.cp_ec_data_cadastro && escola.cp_ec_data_cadastro !== "0000-00-00"
-              ? new Date(escola.cp_ec_data_cadastro)
-              : null,
-            cp_ec_responsavel: escola.cp_ec_responsavel,
-            cp_ec_endereco_rua: escola.cp_ec_endereco_rua,
-            cp_ec_endereco_numero: escola.cp_ec_endereco_numero,
-            cp_ec_endereco_cidade: escola.cp_ec_endereco_cidade,
-            cp_ec_endereco_bairro: escola.cp_ec_endereco_bairro,
-            cp_ec_endereco_estado: escola.cp_ec_endereco_estado,
-            cp_ec_excluido: parseInt(escola.cp_ec_excluido) || 0,
-            cp_ec_descricao: escola.cp_ec_descricao,
-            created_at: new Date(),
-            updated_at: new Date(),
-          },
-        });
+        await prisma.$executeRaw`
+          INSERT INTO cp_escolas (
+            cp_ec_id, cp_ec_nome, cp_ec_data_cadastro, cp_ec_responsavel,
+            cp_ec_endereco_rua, cp_ec_endereco_numero, cp_ec_endereco_cidade,
+            cp_ec_endereco_bairro, cp_ec_endereco_estado, cp_ec_excluido,
+            cp_ec_descricao, created_at, updated_at
+          ) VALUES (
+            ${escola.cp_ec_id},
+            ${escola.cp_ec_nome},
+            ${escola.cp_ec_data_cadastro ? new Date(escola.cp_ec_data_cadastro) : null},
+            ${escola.cp_ec_responsavel},
+            ${escola.cp_ec_endereco_rua},
+            ${escola.cp_ec_endereco_numero},
+            ${escola.cp_ec_endereco_cidade},
+            ${escola.cp_ec_endereco_bairro},
+            ${escola.cp_ec_endereco_estado},
+            ${parseInt(escola.cp_ec_excluido) || 0},
+            ${escola.cp_ec_descricao},
+            ${new Date()},
+            ${new Date()}
+          )
+          ON CONFLICT (cp_ec_id) DO NOTHING
+        `;
         migratedCount++;
       } catch (escolaError) {
         console.error(`Erro ao migrar escola ${escola.cp_ec_id}:`, escolaError.message);
@@ -152,6 +156,7 @@ async function migrateEscolas() {
     console.error(`✗ Erro ao migrar escolas:`, error.message);
   }
 }
+
 
 // Função para migrar cursos
 async function migrateCursos() {
