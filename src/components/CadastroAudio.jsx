@@ -4,6 +4,8 @@ import { API_BASE_URL } from "./config";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Row, Col, Button, Form, Modal } from "react-bootstrap";
+import authService from "../services/authService";
+
 axios.defaults.maxContentLength = Infinity;
 axios.defaults.maxBodyLength = Infinity;
 
@@ -73,6 +75,15 @@ const CadastroAudio = ({ audioID }) => {
   ];
 
   useEffect(() => {
+    // Verificar se o usuário está autenticado
+    if (!authService.isAuthenticated()) {
+      toast.error("Usuário não autenticado. Redirecionando...");
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+      return;
+    }
+
     fetchCursos();
   }, []);
 
@@ -138,10 +149,20 @@ const CadastroAudio = ({ audioID }) => {
 
   const fetchCursos = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/cursos`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/cursos`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       setCursos(response.data);
     } catch (error) {
       console.error("Erro ao buscar os cursos:", error);
+      if (error.response?.status === 401) {
+        toast.error("Sessão expirada. Faça login novamente.");
+        authService.logout();
+      }
     }
   };
 
@@ -179,8 +200,16 @@ const CadastroAudio = ({ audioID }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+
+    console.log("=== INICIANDO CADASTRO ===");
+    console.log("Dados do formulário:", audioData);
+    console.log("É edição?", !!audioID);
+
     try {
       if (audioID) {
+        // MODO EDIÇÃO
+        console.log("=== MODO EDIÇÃO ===");
+
         // 1. Atualiza dados do curso (nome, link e PDFs)
         const cursoFormData = new FormData();
         cursoFormData.append("cp_nome_curso", audioData.cp_curso_id);
@@ -188,23 +217,28 @@ const CadastroAudio = ({ audioID }) => {
 
         audioData.cp_pdfs.forEach((pdf, index) => {
           if (pdf instanceof File) {
+            console.log(`Adicionando PDF ${index + 1}:`, pdf.name);
             cursoFormData.append(`pdf${index + 1}`, pdf);
           }
         });
 
+        console.log("Atualizando curso...");
         await axios.put(`${API_BASE_URL}/update-curso/${audioID}`, cursoFormData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
 
-        // 2. Atualiza os áudios separadamente, usando a rota /update-audio
-        // const audiosNovos = audioData.cp_audio.filter((a) => a instanceof File);
+        // 2. Atualiza os áudios separadamente
         const audiosNovos = audioData.cp_audio.filter(a => a?.type?.startsWith('audio/'));
+        console.log("Áudios novos para adicionar:", audiosNovos.length);
 
         if (audiosNovos.length > 0) {
           const audioFormData = new FormData();
-          audiosNovos.forEach((audio) => {
+          audiosNovos.forEach((audio, index) => {
+            console.log(`Adicionando áudio ${index + 1}:`, audio.name);
             audioFormData.append("audios", audio);
           });
+
+          console.log("Adicionando novos áudios...");
           await axios.put(`${API_BASE_URL}/update-audio/${audioID}`, audioFormData, {
             headers: { "Content-Type": "multipart/form-data" },
           });
@@ -212,36 +246,81 @@ const CadastroAudio = ({ audioID }) => {
 
         toast.success("Curso e áudios atualizados com sucesso!");
       } else {
+        // MODO CRIAÇÃO
+        console.log("=== MODO CRIAÇÃO ===");
+
+        if (!audioData.cp_curso_id) {
+          toast.error("Selecione um curso");
+          return;
+        }
+
+        if (audioData.cp_audio.length === 0) {
+          toast.error("Adicione pelo menos um áudio para cadastrar o curso");
+          return;
+        }
+
         const cursoFormData = new FormData();
         cursoFormData.append("cp_nome_curso", audioData.cp_curso_id);
-        cursoFormData.append("cp_youtube_link_curso", audioData.cp_youtube_link_curso);
+        cursoFormData.append("cp_youtube_link_curso", audioData.cp_youtube_link_curso || "");
 
+        console.log("Criando curso com áudios...");
+        console.log("FormData para curso:", {
+          nome: audioData.cp_curso_id,
+          youtube: audioData.cp_youtube_link_curso,
+          pdfs: audioData.cp_pdfs.length,
+          audios: audioData.cp_audio.length
+        });
+        console.log("Valor do cp_curso_id:", audioData.cp_curso_id);
+        console.log("Tipo do cp_curso_id:", typeof audioData.cp_curso_id);
+
+        // Adicionar PDFs
         audioData.cp_pdfs.forEach((pdf, index) => {
+          console.log(`Adicionando PDF ${index + 1}:`, pdf.name);
           cursoFormData.append(`pdf${index + 1}`, pdf);
         });
+
+        // Adicionar áudios
+        audioData.cp_audio.forEach((audio, index) => {
+          console.log(`Adicionando áudio ${index + 1}:`, audio.name, audio.type);
+          cursoFormData.append("audios", audio);
+        });
+
+        console.log("Criando curso com áudios...");
+        console.log("FormData para curso:", {
+          nome: audioData.cp_curso_id,
+          youtube: audioData.cp_youtube_link_curso,
+          pdfs: audioData.cp_pdfs.length,
+          audios: audioData.cp_audio.length
+        });
+        console.log("Valor do cp_curso_id:", audioData.cp_curso_id);
+        console.log("Tipo do cp_curso_id:", typeof audioData.cp_curso_id);
 
         const response = await axios.post(`${API_BASE_URL}/cursos`, cursoFormData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
+
         const cursoId = response.data.cursoId;
+        console.log("Curso criado com ID:", cursoId);
 
-        if (audioData.cp_audio.length > 0) {
-          const audioFormData = new FormData();
-          audioData.cp_audio.forEach((audio) => {
-            audioFormData.append("audios", audio);
-          });
-          await axios.post(`${API_BASE_URL}/register-audio/${cursoId}`, audioFormData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-        }
-
-        toast.success("Curso e áudios cadastrados com sucesso!");
+        toast.success(`Curso e ${audioData.cp_audio.length} áudio(s) cadastrados com sucesso!`);
         setAudioData(estadoInicial);
       }
     } catch (error) {
-      console.error("❌ Erro ao processar o áudio:", error);
-      toast.error("Erro ao processar o áudio");
+      console.error("❌ Erro completo:", error);
+      console.error("❌ Response data:", error.response?.data);
+      console.error("❌ Status:", error.response?.status);
+
+      let errorMessage = "Erro ao processar o áudio";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.details) {
+        errorMessage = error.response.data.details;
+      }
+
+      toast.error(errorMessage);
+
       if (!audioID && error.response?.data?.cursoId) {
+        console.log("Removendo curso criado por erro...");
         await axios.delete(`${API_BASE_URL}/cursos/${error.response.data.cursoId}`);
       }
     } finally {

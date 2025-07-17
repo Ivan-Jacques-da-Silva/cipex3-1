@@ -172,17 +172,14 @@ async function migrateCursos() {
 
     for (const curso of cursos) {
       try {
-        await prisma.cp_cursos.create({
+        await prisma.cp_curso.create({
           data: {
-            cp_id_curso: curso.cp_curso_id,
+            cp_curso_id: curso.cp_curso_id,
             cp_nome_curso: curso.cp_nome_curso || "",
             cp_youtube_link_curso: curso.cp_youtube_link_curso || null,
             cp_pdf1_curso: curso.cp_pdf1_curso || null,
             cp_pdf2_curso: curso.cp_pdf2_curso || null,
             cp_pdf3_curso: curso.cp_pdf3_curso || null,
-            cp_descricao_curso: null, // campo não existe na rota
-            cp_preco_curso: 0.0, // valor padrão
-            cp_duracao_meses: 1, // valor padrão
           },
         });
         migratedCount++;
@@ -314,16 +311,12 @@ async function migrateAudios() {
 
     for (const audio of audios) {
       try {
-        await prisma.cp_audios.create({
+        await prisma.cp_audio.create({
           data: {
-            cp_aud_id: audio.cp_audio_id,
-            cp_aud_titulo: audio.cp_nome_audio || "",
-            cp_aud_descricao: null,
-            cp_aud_arquivo: audio.cp_arquivo_audio || "",
-            cp_aud_curso_id: audio.cp_curso_id,
-            cp_aud_excluido: 0,
-            created_at: new Date(),
-            updated_at: new Date(),
+            cp_audio_id: audio.cp_audio_id,
+            cp_nome_audio: audio.cp_nome_audio || "",
+            cp_arquivo_audio: audio.cp_arquivo_audio || "",
+            cp_curso_id: audio.cp_curso_id,
           },
         });
         totalAudios++;

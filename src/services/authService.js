@@ -5,9 +5,40 @@ import { API_BASE_URL } from '../components/config';
 class AuthService {
   constructor() {
     this.token = localStorage.getItem('token');
+    this.setupAxiosInterceptors();
     if (this.token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
     }
+  }
+
+  setupAxiosInterceptors() {
+    // Interceptor para adicionar token automaticamente
+    axios.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // Interceptor para lidar com respostas de erro
+    axios.interceptors.response.use(
+      (response) => {
+        return response;
+      },
+      (error) => {
+        if (error.response && error.response.status === 401) {
+          this.removeToken();
+          window.location.href = '/';
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   setToken(token) {

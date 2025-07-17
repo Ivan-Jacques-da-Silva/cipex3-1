@@ -517,7 +517,7 @@ app.get("/turmas/:turmaId/alunos", (req, res) => {
 app.get("/cursos/:cursoId", (req, res) => {
   const { cursoId } = req.params;
 
-  const query = "SELECT * FROM cp_cursos WHERE cp_id_curso = $1";
+  const query = "SELECT * FROM cp_curso WHERE cp_curso_id = $1";
 
   db.query(query, [cursoId], (err, results) => {
     if (err) {
@@ -562,7 +562,7 @@ app.post("/cursos/batch", (req, res) => {
   }
 
   const placeholders = cursoIds.map((_, index) => `$${index + 1}`).join(",");
-  const query = `SELECT * FROM cp_cursos WHERE cp_id IN (${placeholders})`;
+  const query = `SELECT cp_curso_id as cp_id_curso, cp_nome_curso, cp_youtube_link_curso, cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso FROM cp_curso WHERE cp_curso_id IN (${placeholders})`;
 
   db.query(query, cursoIds, (err, results) => {
     if (err) {
@@ -767,25 +767,73 @@ app.get("/curso-material/:cursoId", (req, res) => {
 app.get("/audios-curso/:cursoId", (req, res) => {
   const { cursoId } = req.params;
 
-  const query = "SELECT * FROM cp_audios WHERE cp_aud_curso_id = $1 AND cp_aud_excluido = 0 ORDER BY cp_aud_titulo";
+  const query = "SELECT * FROM cp_audio WHERE cp_curso_id = $1 ORDER BY cp_nome_audio";
 
   db.query(query, [cursoId], (err, results) => {
     if (err) {
       console.error("Erro ao buscar áudios do curso:", err);
       return res.status(500).json({ error: "Erro ao buscar áudios do curso" });
     }
-    
+
     // Mapear para o formato esperado pelo frontend
     const audiosFormatados = results.rows.map(audio => ({
-      cp_aud_id: audio.cp_aud_id,
-      cp_nome_audio: audio.cp_aud_titulo,
-      cp_aud_titulo: audio.cp_aud_titulo,
-      cp_aud_arquivo: audio.cp_aud_arquivo,
-      cp_aud_curso_id: audio.cp_aud_curso_id,
-      arquivo: audio.cp_aud_arquivo
+      cp_audio_id: audio.cp_audio_id,
+      cp_nome_audio: audio.cp_nome_audio,
+      cp_arquivo_audio: audio.cp_arquivo_audio,
+      cp_curso_id: audio.cp_curso_id,
+      arquivo: audio.cp_arquivo_audio,
+      // Adicionar URL completa para acesso
+      url_audio: `${req.protocol}://${req.get('host')}/AudiosCurso/${audio.cp_arquivo_audio}`
     }));
-    
+
     res.json(audiosFormatados);
+  });
+});
+
+// Rota para buscar áudio específico por ID
+app.get("/audio/:audioId", (req, res) => {
+  const { audioId } = req.params;
+
+  const query = "SELECT * FROM cp_audio WHERE cp_audio_id = $1";
+
+  db.query(query, [audioId], (err, results) => {
+    if (err) {
+      console.error("Erro ao buscar áudio:", err);
+      return res.status(500).json({ error: "Erro ao buscar áudio" });
+    }
+
+    if (results.rows.length === 0) {
+      return res.status(404).json({ error: "Áudio não encontrado" });
+    }
+
+    const audio = results.rows[0];
+    res.json({
+      cp_audio_id: audio.cp_audio_id,
+      cp_nome_audio: audio.cp_nome_audio,
+      cp_arquivo_audio: audio.cp_arquivo_audio,
+      cp_curso_id: audio.cp_curso_id,
+      url_audio: `${req.protocol}://${req.get('host')}/AudiosCurso/${audio.cp_arquivo_audio}`
+    });
+  });
+});
+
+// Rota para deletar áudio específico
+app.delete("/audio/:audioId", authenticateToken, (req, res) => {
+  const { audioId } = req.params;
+
+  const query = "DELETE FROM cp_audio WHERE cp_audio_id = $1";
+
+  db.query(query, [audioId], (err, result) => {
+    if (err) {
+      console.error("Erro ao deletar áudio:", err);
+      return res.status(500).json({ error: "Erro ao deletar áudio" });
+    }
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Áudio não encontrado" });
+    }
+
+    res.json({ message: "Áudio deletado com sucesso" });
   });
 });
 
@@ -807,7 +855,7 @@ app.post("/registrar-visualizacao", (req, res) => {
 
 // 18. Rota para buscar todos os cursos
 app.get("/cursos", (req, res) => {
-  const query = "SELECT * FROM cp_cursos";
+  const query = "SELECT cp_curso_id as cp_id_curso, cp_nome_curso, cp_youtube_link_curso, cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso FROM cp_curso";
 
   db.query(query, (err, results) => {
     if (err) {
@@ -820,7 +868,7 @@ app.get("/cursos", (req, res) => {
 
 // Rota para buscar cursos para migração (compatibilidade)
 app.get("/cursos-migracao", (req, res) => {
-  const query = "SELECT cp_id_curso as cp_curso_id, cp_nome_curso, cp_youtube_link_curso, cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso FROM cp_cursos ORDER BY cp_nome_curso";
+  const query = "SELECT cp_curso_id, cp_nome_curso, cp_youtube_link_curso, cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso FROM cp_curso ORDER BY cp_nome_curso";
 
   db.query(query, (err, results) => {
     if (err) {
@@ -835,7 +883,7 @@ app.get("/cursos-migracao", (req, res) => {
 app.delete("/delete-curso/:cursoId", authenticateToken, (req, res) => {
   const { cursoId } = req.params;
 
-  const query = "DELETE FROM cp_cursos WHERE cp_id_curso = $1";
+  const query = "DELETE FROM cp_curso WHERE cp_curso_id = $1";
 
   db.query(query, [cursoId], (err, result) => {
     if (err) {
@@ -1095,16 +1143,12 @@ app.post("/escolas", authenticateToken, (req, res) => {
 app.post("/cursos", authenticateToken, (req, res) => {
   const { cp_nome, cp_descricao, cp_preco, cp_duracao_meses } = req.body;
 
-  if (!cp_nome) {
-    return res.status(400).json({ error: "Nome do curso é obrigatório" });
-  }
-
   const query = `
-    INSERT INTO cp_cursos (cp_nome_curso, cp_descricao, cp_preco, cp_duracao_meses)
-    VALUES ($1, $2, $3, $4) RETURNING *
+    INSERT INTO cp_curso (cp_nome_curso)
+    VALUES ($1) RETURNING *
   `;
 
-  const values = [cp_nome, cp_descricao, cp_preco || 0, cp_duracao_meses || 0];
+  const values = [cp_nome];
 
   db.query(query, values, (err, result) => {
     if (err) {
@@ -1173,7 +1217,7 @@ app.post("/turmas", authenticateToken, async (req, res) => {
     // Atualizar cp_turma_id para os alunos selecionados
     if (Array.isArray(cp_tr_alunos) && cp_tr_alunos.length > 0) {
       console.log("Atualizando alunos com IDs:", cp_tr_alunos);
-      
+
       const queryUpdateAlunos = `
         UPDATE cp_usuarios 
         SET cp_turma_id = $1, updated_at = NOW() 
@@ -1694,18 +1738,12 @@ app.put("/cursos/:id", authenticateToken, (req, res) => {
   }
 
   const query = `
-    UPDATE cp_cursos 
-    SET cp_nome_curso = $1, cp_descricao = $2, cp_preco = $3, cp_duracao_meses = $4, updated_at = NOW()
-    WHERE cp_id_curso = $5 RETURNING *
+    UPDATE cp_curso 
+    SET cp_nome_curso = $1
+    WHERE cp_curso_id = $2 RETURNING *
   `;
 
-  const values = [
-    cp_nome,
-    cp_descricao,
-    cp_preco || 0,
-    cp_duracao_meses || 0,
-    id,
-  ];
+  const values = [cp_nome, id];
 
   db.query(query, values, (err, result) => {
     if (err) {
@@ -1758,8 +1796,7 @@ app.put("/turmas/:id", authenticateToken, async (req, res) => {
     const values = [
       cp_tr_nome,
       cp_tr_data,
-      cp_tr_id_escola,
-      cp_tr_id_professor,
+      cp_tr_id_escola,      cp_tr_id_professor,
       cp_tr_curso_id,
       cp_tr_dias_semana,
       cp_tr_horario_inicio,
@@ -1797,7 +1834,7 @@ app.put("/turmas/:id", authenticateToken, async (req, res) => {
     // Adicionar os alunos selecionados à turma
     if (Array.isArray(cp_tr_alunos) && cp_tr_alunos.length > 0) {
       console.log("Atualizando alunos com IDs:", cp_tr_alunos);
-      
+
       const queryUpdateAlunos = `
         UPDATE cp_usuarios 
         SET cp_turma_id = $1, updated_at = NOW() 
@@ -2036,15 +2073,40 @@ app.delete("/matriculas/:id", authenticateToken, (req, res) => {
 
 // ROTAS PARA CADASTRO DE ÁUDIO/CURSO
 
-// Rota para cadastrar curso com PDFs
-app.post("/cursos", materialCursoUpload.fields([
+// Configurar multer para aceitar áudios e PDFs juntos
+const cursoCompleto = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      if (file.fieldname === 'audios') {
+        cb(null, "AudiosCurso");
+      } else {
+        cb(null, "MaterialCurso");
+      }
+    },
+    filename: (req, file, cb) => {
+      cb(null, Date.now() + path.extname(file.originalname));
+    },
+  }),
+});
+
+// Rota para cadastrar curso com áudios e PDFs em uma transação
+app.post("/cursos", cursoCompleto.fields([
   { name: 'pdf1', maxCount: 1 },
   { name: 'pdf2', maxCount: 1 },
-  { name: 'pdf3', maxCount: 1 }
-]), (req, res) => {
-  const { cp_nome_curso, cp_youtube_link_curso } = req.body;
+  { name: 'pdf3', maxCount: 1 },
+  { name: 'audios', maxCount: 100 }
+]), async (req, res) => {
+  console.log("=== POST /cursos ===");
+  console.log("Body recebido:", req.body);
+  console.log("Files recebidos:", req.files);
 
-  if (!cp_nome_curso) {
+  // Aceitar tanto cp_nome_curso quanto cp_curso_id (que vem do frontend)
+  const nomeCurso = req.body.cp_nome_curso || req.body.cp_curso_id;
+  const { cp_youtube_link_curso } = req.body;
+
+  // Validação básica
+  if (!nomeCurso || nomeCurso.trim() === "") {
+    console.log("❌ Nome do curso não fornecido");
     return res.status(400).json({ error: "Nome do curso é obrigatório" });
   }
 
@@ -2052,79 +2114,160 @@ app.post("/cursos", materialCursoUpload.fields([
   const pdf2 = req.files?.pdf2 ? req.files.pdf2[0].filename : null;
   const pdf3 = req.files?.pdf3 ? req.files.pdf3[0].filename : null;
 
-  const query = `
-    INSERT INTO cp_cursos (cp_nome_curso, cp_youtube_link_curso, cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso, cp_descricao_curso, cp_preco_curso, cp_duracao_meses)
-    VALUES ($1, $2, $3, $4, $5, '', 0, 0) RETURNING cp_id_curso
-  `;
+  console.log("PDFs processados:", { pdf1, pdf2, pdf3 });
 
-  const values = [cp_nome_curso, cp_youtube_link_curso || null, pdf1, pdf2, pdf3];
+  // Iniciar transação
+  const client = await db.connect();
+  let cursoId = null;
 
-  db.query(query, values, (err, result) => {
-    if (err) {
-      console.error("Erro ao cadastrar curso:", err);
-      return res.status(500).json({ error: "Erro ao cadastrar curso" });
+  try {
+    await client.query('BEGIN');
+
+    // 1. Inserir curso
+    const cursoQuery = `
+      INSERT INTO cp_curso (cp_nome_curso, cp_youtube_link_curso, cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso)
+      VALUES ($1, $2, $3, $4, $5) RETURNING cp_curso_id
+    `;
+    const cursoValues = [nomeCurso, cp_youtube_link_curso || null, pdf1, pdf2, pdf3];
+
+    console.log("Executando query do curso com valores:", cursoValues);
+    const cursoResult = await client.query(cursoQuery, cursoValues);
+    cursoId = cursoResult.rows[0].cp_curso_id;
+
+    console.log("✅ Curso inserido com ID:", cursoId);
+
+    // 2. Processar áudios se existirem
+    const audios = req.files?.audios || [];
+    if (audios.length > 0) {
+      console.log(`Processando ${audios.length} áudios...`);
+
+      // Validar formato de áudio
+      const invalidFiles = audios.filter(audio => {
+        const isValidMimeType = audio.mimetype.includes('audio') || audio.mimetype.includes('mpeg');
+        const isValidExtension = audio.originalname.toLowerCase().endsWith('.mp3');
+        return !isValidMimeType && !isValidExtension;
+      });
+
+      if (invalidFiles.length > 0) {
+        console.log("❌ Arquivos inválidos:", invalidFiles.map(f => f.originalname));
+        throw new Error(`Apenas arquivos de áudio .mp3 são permitidos: ${invalidFiles.map(f => f.originalname).join(', ')}`);
+      }
+
+      // Inserir áudios
+      for (let i = 0; i < audios.length; i++) {
+        const audio = audios[i];
+        const audioQuery = `
+          INSERT INTO cp_audio (cp_nome_audio, cp_arquivo_audio, cp_curso_id)
+          VALUES ($1, $2, $3)
+        `;
+        const nomeAudio = audio.originalname.replace(/\.mp3$/i, '');
+        const audioValues = [nomeAudio, audio.filename, cursoId];
+
+        console.log(`Inserindo áudio ${i + 1}:`, { nomeAudio, filename: audio.filename, cursoId });
+        await client.query(audioQuery, audioValues);
+        console.log(`✅ Áudio ${i + 1} inserido com sucesso`);
+      }
     }
+
+    // Confirmar transação
+    await client.query('COMMIT');
+    console.log("✅ Transação confirmada com sucesso");
 
     res.status(201).json({
       success: true,
-      message: "Curso cadastrado com sucesso",
-      cursoId: result.rows[0].cp_id_curso
+      message: "Curso e áudios cadastrados com sucesso",
+      cursoId: cursoId,
+      audiosCount: audios.length
     });
-  });
+
+  } catch (error) {
+    // Reverter transação em caso de erro
+    await client.query('ROLLBACK');
+    console.error("❌ Erro na transação, fazendo rollback:", error);
+
+    res.status(500).json({ 
+      error: "Erro ao cadastrar curso e áudios", 
+      details: error.message,
+      cursoId: cursoId // Enviar ID do curso para o frontend poder fazer limpeza se necessário
+    });
+  } finally {
+    client.release();
+  }
 });
 
-// Rota para cadastrar áudios de um curso
-app.post("/register-audio/:cursoId", audioUpload.array('audios'), (req, res) => {
+// Rota para cadastrar áudios de um curso existente
+app.post("/register-audio/:cursoId", audioUpload.array('audios'), async (req, res) => {
   const { cursoId } = req.params;
   const audios = req.files;
 
+  console.log("=== POST /register-audio ===");
+  console.log("Curso ID:", cursoId);
+  console.log("Arquivos recebidos:", audios?.length || 0);
+
   if (!audios || audios.length === 0) {
+    console.log("❌ Nenhum áudio enviado");
     return res.status(400).json({ error: "Nenhum áudio foi enviado" });
   }
 
-  // Validar formato MP3
-  const invalidFiles = audios.filter(audio => !audio.mimetype.includes('audio') && !audio.originalname.toLowerCase().endsWith('.mp3'));
-  if (invalidFiles.length > 0) {
-    return res.status(400).json({ error: "Apenas arquivos de áudio .mp3 são permitidos" });
-  }
-
-  const queries = audios.map(audio => {
-    return new Promise((resolve, reject) => {
-      const query = `
-        INSERT INTO cp_audios (cp_aud_titulo, cp_aud_arquivo, cp_aud_curso_id)
-        VALUES ($1, $2, $3)
-      `;
-      const values = [
-        audio.originalname.replace('.mp3', ''), // Remove extensão do título
-        audio.filename,
-        parseInt(cursoId)
-      ];
-
-      db.query(query, values, (err, result) => {
-        if (err) reject(err);
-        else resolve(result);
-      });
-    });
+  // Validar formato MP3 - aceitar mais tipos de áudio
+  const invalidFiles = audios.filter(audio => {
+    const isValidMimeType = audio.mimetype.includes('audio') || audio.mimetype.includes('mpeg');
+    const isValidExtension = audio.originalname.toLowerCase().endsWith('.mp3');
+    return !isValidMimeType && !isValidExtension;
   });
 
-  Promise.all(queries)
-    .then(() => {
-      res.status(201).json({
-        success: true,
-        message: `${audios.length} áudio(s) cadastrado(s) com sucesso`
-      });
-    })
-    .catch(err => {
-      console.error("Erro ao cadastrar áudios:", err);
-      res.status(500).json({ error: "Erro ao cadastrar áudios" });
+  if (invalidFiles.length > 0) {
+    console.log("❌ Arquivos inválidos:", invalidFiles.map(f => f.originalname));
+    return res.status(400).json({ 
+      error: "Apenas arquivos de áudio .mp3 são permitidos",
+      invalidFiles: invalidFiles.map(f => f.originalname)
     });
+  }
+
+  console.log("✅ Todos os arquivos são válidos");
+
+  const client = await db.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Inserir áudios em transação
+    for (let i = 0; i < audios.length; i++) {
+      const audio = audios[i];
+      const query = `
+        INSERT INTO cp_audio (cp_nome_audio, cp_arquivo_audio, cp_curso_id)
+        VALUES ($1, $2, $3)
+      `;
+      const nomeAudio = audio.originalname.replace(/\.mp3$/i, '');
+      const values = [nomeAudio, audio.filename, parseInt(cursoId)];
+
+      console.log(`Inserindo áudio ${i + 1}:`, { nomeAudio, filename: audio.filename, cursoId });
+      await client.query(query, values);
+      console.log(`✅ Áudio ${i + 1} inserido com sucesso`);
+    }
+
+    await client.query('COMMIT');
+    console.log(`✅ Todos os ${audios.length} áudios foram cadastrados`);
+
+    res.status(201).json({
+      success: true,
+      message: `${audios.length} áudio(s) cadastrado(s) com sucesso`
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error("❌ Erro ao cadastrar áudios:", error);
+    res.status(500).json({ error: "Erro ao cadastrar áudios", details: error.message });
+  } finally {
+    client.release();
+  }
 });
 
 // Rota para buscar curso por ID para edição
 app.get("/curso/:cursoId", (req, res) => {
   const { cursoId } = req.params;
 
-  const query = "SELECT * FROM cp_cursos WHERE cp_id_curso = $1";
+  const query = "SELECT * FROM cp_curso WHERE cp_curso_id = $1";
 
   db.query(query, [cursoId], (err, results) => {
     if (err) {
@@ -2154,8 +2297,8 @@ app.put("/cursos/:cursoId", materialCursoUpload.fields([
   }
 
   // Primeiro, buscar os PDFs atuais
-  const getQuery = "SELECT cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso FROM cp_cursos WHERE cp_id_curso = $1";
-  
+  const getQuery = "SELECT cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso FROM cp_curso WHERE cp_curso_id = $1";
+
   db.query(getQuery, [cursoId], (err, currentResult) => {
     if (err) {
       console.error("Erro ao buscar curso atual:", err);
@@ -2167,16 +2310,72 @@ app.put("/cursos/:cursoId", materialCursoUpload.fields([
     }
 
     const currentData = currentResult.rows[0];
-    
+
     // Usar novos arquivos se enviados, senão manter os atuais
     const pdf1 = req.files?.pdf1 ? req.files.pdf1[0].filename : currentData.cp_pdf1_curso;
     const pdf2 = req.files?.pdf2 ? req.files.pdf2[0].filename : currentData.cp_pdf2_curso;
     const pdf3 = req.files?.pdf3 ? req.files.pdf3[0].filename : currentData.cp_pdf3_curso;
 
     const updateQuery = `
-      UPDATE cp_cursos 
+      UPDATE cp_curso 
       SET cp_nome_curso = $1, cp_youtube_link_curso = $2, cp_pdf1_curso = $3, cp_pdf2_curso = $4, cp_pdf3_curso = $5
-      WHERE cp_id_curso = $6 RETURNING *
+      WHERE cp_curso_id = $6 RETURNING *
+    `;
+
+    const values = [nomeCurso, cp_youtube_link_curso || null, pdf1, pdf2, pdf3, cursoId];
+
+    db.query(updateQuery, values, (err, result) => {
+      if (err) {
+        console.error("Erro ao atualizar curso:", err);
+        return res.status(500).json({ error: "Erro ao atualizar curso" });
+      }
+
+      res.json({
+        success: true,
+        message: "Curso atualizado com sucesso",
+        curso: result.rows[0]
+      });
+    });
+  });
+});
+
+// Rota para atualizar curso
+app.put("/update-curso/:cursoId", materialCursoUpload.fields([
+  { name: 'pdf1', maxCount: 1 },
+  { name: 'pdf2', maxCount: 1 },
+  { name: 'pdf3', maxCount: 1 }
+]), (req, res) => {
+  const { cursoId } = req.params;
+  const { cp_nome_curso, cp_youtube_link_curso } = req.body;
+
+  if (!cp_nome_curso) {
+    return res.status(400).json({ error: "Nome do curso é obrigatório" });
+  }
+
+  // Primeiro, buscar os PDFs atuais
+  const getQuery = "SELECT cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso FROM cp_curso WHERE cp_curso_id = $1";
+
+  db.query(getQuery, [cursoId], (err, currentResult) => {
+    if (err) {
+      console.error("Erro ao buscar curso atual:", err);
+      return res.status(500).json({ error: "Erro ao buscar curso" });
+    }
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: "Curso não encontrado" });
+    }
+
+    const currentData = currentResult.rows[0];
+
+    // Usar novos arquivos se enviados, senão manter os atuais
+    const pdf1 = req.files?.pdf1 ? req.files.pdf1[0].filename : currentData.cp_pdf1_curso;
+    const pdf2 = req.files?.pdf2 ? req.files.pdf2[0].filename : currentData.cp_pdf2_curso;
+    const pdf3 = req.files?.pdf3 ? req.files.pdf3[0].filename : currentData.cp_pdf3_curso;
+
+    const updateQuery = `
+      UPDATE cp_curso 
+      SET cp_nome_curso = $1, cp_youtube_link_curso = $2, cp_pdf1_curso = $3, cp_pdf2_curso = $4, cp_pdf3_curso = $5
+      WHERE cp_curso_id = $6 RETURNING *
     `;
 
     const values = [cp_nome_curso, cp_youtube_link_curso || null, pdf1, pdf2, pdf3, cursoId];
@@ -2217,7 +2416,7 @@ app.put("/update-audio/:cursoId", audioUpload.array('audios'), (req, res) => {
   const queries = audios.map(audio => {
     return new Promise((resolve, reject) => {
       const query = `
-        INSERT INTO cp_audios (cp_aud_titulo, cp_aud_arquivo, cp_aud_curso_id)
+        INSERT INTO cp_audio (cp_nome_audio, cp_arquivo_audio, cp_curso_id)
         VALUES ($1, $2, $3)
       `;
       const values = [
