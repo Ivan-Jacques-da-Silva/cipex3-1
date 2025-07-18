@@ -48,20 +48,59 @@ const CadastroAudio = ({ audioID }) => {
     { value: "CIPEX ENGLISH BOOK 5", label: "[ING] - CIPEX ENGLISH BOOK 5" },
     { value: "CIPEX ENGLISH BOOK 6", label: "[ING] - CIPEX ENGLISH BOOK 6" },
     { value: "CIPEX ENGLISH BOOK 7", label: "[ING] - CIPEX ENGLISH BOOK 7" },
-    { value: "TV BOX CONVERSATION VOL. 1", label: "[ING] - TV BOX CONVERSATION VOL. 1" },
-    { value: "TV BOX CONVERSATION VOL. 2", label: "[ING] - TV BOX CONVERSATION VOL. 2" },
-    { value: "THE BUSINESS PRE-INTERMEDIATE", label: "[ING] - The Business Pre-Intermediate" },
-    { value: "THE BUSINESS INTERMEDIATE", label: "[ING] - The Business Intermediate" },
-    { value: "THE BUSINESS UPPER-INTERMEDIATE", label: "[ING] - The Business Upper-Intermediate" },
+    {
+      value: "TV BOX CONVERSATION VOL. 1",
+      label: "[ING] - TV BOX CONVERSATION VOL. 1",
+    },
+    {
+      value: "TV BOX CONVERSATION VOL. 2",
+      label: "[ING] - TV BOX CONVERSATION VOL. 2",
+    },
+    {
+      value: "THE BUSINESS PRE-INTERMEDIATE",
+      label: "[ING] - The Business Pre-Intermediate",
+    },
+    {
+      value: "THE BUSINESS INTERMEDIATE",
+      label: "[ING] - The Business Intermediate",
+    },
+    {
+      value: "THE BUSINESS UPPER-INTERMEDIATE",
+      label: "[ING] - The Business Upper-Intermediate",
+    },
     { value: "THE BUSINESS ADVANCED", label: "[ING] - The Business Advanced" },
-    { value: "IN COMPANY 3.0 PRE-INTERMEDIATE", label: "[ING] - In Company 3.0 Pre-Intermediate" },
-    { value: "IN COMPANY 3.0 INTERMEDIATE", label: "[ING] - In Company 3.0 Intermediate" },
-    { value: "IN COMPANY 3.0 UPPER-INTERMEDIATE", label: "[ING] - In Company 3.0 Upper-Intermediate" },
-    { value: "IN COMPANY 3.0 ADVANCED", label: "[ING] - In Company 3.0 Advanced" },
-    { value: "NUEVO ESPAÑOL EN MARCHA 1", label: "[ESP] - NUEVO ESPAÑOL EN MARCHA 1" },
-    { value: "NUEVO ESPAÑOL EN MARCHA 2", label: "[ESP] - NUEVO ESPAÑOL EN MARCHA 2" },
-    { value: "NUEVO ESPAÑOL EN MARCHA 3", label: "[ESP] - NUEVO ESPAÑOL EN MARCHA 3" },
-    { value: "NUEVO ESPAÑOL EN MARCHA 4", label: "[ESP] - NUEVO ESPAÑOL EN MARCHA 4" },
+    {
+      value: "IN COMPANY 3.0 PRE-INTERMEDIATE",
+      label: "[ING] - In Company 3.0 Pre-Intermediate",
+    },
+    {
+      value: "IN COMPANY 3.0 INTERMEDIATE",
+      label: "[ING] - In Company 3.0 Intermediate",
+    },
+    {
+      value: "IN COMPANY 3.0 UPPER-INTERMEDIATE",
+      label: "[ING] - In Company 3.0 Upper-Intermediate",
+    },
+    {
+      value: "IN COMPANY 3.0 ADVANCED",
+      label: "[ING] - In Company 3.0 Advanced",
+    },
+    {
+      value: "NUEVO ESPAÑOL EN MARCHA 1",
+      label: "[ESP] - NUEVO ESPAÑOL EN MARCHA 1",
+    },
+    {
+      value: "NUEVO ESPAÑOL EN MARCHA 2",
+      label: "[ESP] - NUEVO ESPAÑOL EN MARCHA 2",
+    },
+    {
+      value: "NUEVO ESPAÑOL EN MARCHA 3",
+      label: "[ESP] - NUEVO ESPAÑOL EN MARCHA 3",
+    },
+    {
+      value: "NUEVO ESPAÑOL EN MARCHA 4",
+      label: "[ESP] - NUEVO ESPAÑOL EN MARCHA 4",
+    },
     { value: "ALFABETIZACAO", label: "[ALE] - ALFABETIZAÇÃO" },
     { value: "MOMENTE A1", label: "[ALE] - MOMENTE A1" },
     { value: "MOMENTE A2", label: "[ALE] - MOMENTE A2" },
@@ -79,7 +118,7 @@ const CadastroAudio = ({ audioID }) => {
     if (!authService.isAuthenticated()) {
       toast.error("Usuário não autenticado. Redirecionando...");
       setTimeout(() => {
-        window.location.href = '/';
+        window.location.href = "/";
       }, 2000);
       return;
     }
@@ -109,9 +148,11 @@ const CadastroAudio = ({ audioID }) => {
   const buscarCurso = async (idCurso) => {
     try {
       const resp = await axios.get(`${API_BASE_URL}/cursos/${idCurso}`);
-      const link = resp.data.cp_youtube_link_curso
+      const link = resp.data.cp_youtube_link_curso;
       const courseName = resp.data.cp_nome_curso;
-      const matchingOption = opcoesCursos.find(option => option.value === courseName);
+      const matchingOption = opcoesCursos.find(
+        (option) => option.value === courseName,
+      );
       setAudioData((dadosAntigos) => ({
         ...dadosAntigos,
         cp_curso_id: matchingOption ? matchingOption.value : "",
@@ -124,20 +165,17 @@ const CadastroAudio = ({ audioID }) => {
         ].filter(Boolean), // remove nulls
         nomeCurso: courseName,
       }));
-
     } catch (erro) {
       toast.error("Erro ao carregar curso");
     }
   };
-
-
 
   const buscarAudiosDoCurso = async (idCurso) => {
     try {
       const resp = await axios.get(`${API_BASE_URL}/audios-curso/${idCurso}`);
       setAudioData((dadosAntigos) => ({
         ...dadosAntigos,
-        cp_audio: resp.data // array de áudios do curso
+        cp_audio: resp.data, // array de áudios do curso
       }));
       // console.log("Nomes dos áudios:", resp.data.map(audio => audio.cp_nome_audio));
     } catch (erro) {
@@ -145,16 +183,14 @@ const CadastroAudio = ({ audioID }) => {
     }
   };
 
-
-
   const fetchCursos = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const response = await axios.get(`${API_BASE_URL}/cursos`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
       setCursos(response.data);
     } catch (error) {
@@ -175,14 +211,23 @@ const CadastroAudio = ({ audioID }) => {
     const { files, name } = e.target;
     if (name === "cp_audio") {
       const novosAudios = [...(audioData.cp_audio || []), ...Array.from(files)];
-      setAudioData((prevAudioData) => ({ ...prevAudioData, cp_audio: novosAudios }));
+      setAudioData((prevAudioData) => ({
+        ...prevAudioData,
+        cp_audio: novosAudios,
+      }));
     } else if (name === "cp_pdfs") {
       if (files.length + audioData.cp_pdfs.length > 3) {
         toast.error("Máximo de 3 PDFs permitidos.");
         return;
       }
-      const novosPdfs = [...(audioData.cp_pdfs || []), ...Array.from(files)].slice(0, 3);
-      setAudioData((prevAudioData) => ({ ...prevAudioData, cp_pdfs: novosPdfs }));
+      const novosPdfs = [
+        ...(audioData.cp_pdfs || []),
+        ...Array.from(files),
+      ].slice(0, 3);
+      setAudioData((prevAudioData) => ({
+        ...prevAudioData,
+        cp_pdfs: novosPdfs,
+      }));
     }
   };
 
@@ -213,7 +258,10 @@ const CadastroAudio = ({ audioID }) => {
         // 1. Atualiza dados do curso (nome, link e PDFs)
         const cursoFormData = new FormData();
         cursoFormData.append("cp_nome_curso", audioData.cp_curso_id);
-        cursoFormData.append("cp_youtube_link_curso", audioData.cp_youtube_link_curso || "");
+        cursoFormData.append(
+          "cp_youtube_link_curso",
+          audioData.cp_youtube_link_curso || "",
+        );
 
         audioData.cp_pdfs.forEach((pdf, index) => {
           if (pdf instanceof File) {
@@ -223,12 +271,18 @@ const CadastroAudio = ({ audioID }) => {
         });
 
         console.log("Atualizando curso...");
-        await axios.put(`${API_BASE_URL}/update-curso/${audioID}`, cursoFormData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await axios.put(
+          `${API_BASE_URL}/update-curso/${audioID}`,
+          cursoFormData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          },
+        );
 
         // 2. Atualiza os áudios separadamente
-        const audiosNovos = audioData.cp_audio.filter(a => a?.type?.startsWith('audio/'));
+        const audiosNovos = audioData.cp_audio.filter((a) =>
+          a?.type?.startsWith("audio/"),
+        );
         console.log("Áudios novos para adicionar:", audiosNovos.length);
 
         if (audiosNovos.length > 0) {
@@ -239,9 +293,13 @@ const CadastroAudio = ({ audioID }) => {
           });
 
           console.log("Adicionando novos áudios...");
-          await axios.put(`${API_BASE_URL}/update-audio/${audioID}`, audioFormData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+          await axios.put(
+            `${API_BASE_URL}/update-audio/${audioID}`,
+            audioFormData,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+            },
+          );
         }
 
         toast.success("Curso e áudios atualizados com sucesso!");
@@ -260,18 +318,30 @@ const CadastroAudio = ({ audioID }) => {
         }
 
         const cursoFormData = new FormData();
-        cursoFormData.append("cp_nome_curso", audioData.cp_curso_id);
-        cursoFormData.append("cp_youtube_link_curso", audioData.cp_youtube_link_curso || "");
+        
+        // Verificar se o nome do curso não está vazio
+        const nomeCurso = audioData.cp_curso_id;
+        if (!nomeCurso || nomeCurso.trim() === "") {
+          toast.error("Por favor, selecione um curso válido");
+          return;
+        }
+        
+        console.log("=== FRONTEND LOG ===");
+        console.log("Frontend, valor sendo enviado cp_nome_curso:", nomeCurso);
+        console.log("Frontend, audioData completo:", audioData);
+        
+        cursoFormData.append("cp_nome_curso", nomeCurso);
+        cursoFormData.append(
+          "cp_youtube_link_curso",
+          audioData.cp_youtube_link_curso || "",
+        );
 
-        console.log("Criando curso com áudios...");
-        console.log("FormData para curso:", {
-          nome: audioData.cp_curso_id,
-          youtube: audioData.cp_youtube_link_curso,
+        console.log("=== DEBUG: Enviando curso ===");
+        console.log("Nome do curso:", nomeCurso);
+        console.log("Total de arquivos:", {
           pdfs: audioData.cp_pdfs.length,
-          audios: audioData.cp_audio.length
+          audios: audioData.cp_audio.length,
         });
-        console.log("Valor do cp_curso_id:", audioData.cp_curso_id);
-        console.log("Tipo do cp_curso_id:", typeof audioData.cp_curso_id);
 
         // Adicionar PDFs
         audioData.cp_pdfs.forEach((pdf, index) => {
@@ -281,28 +351,30 @@ const CadastroAudio = ({ audioID }) => {
 
         // Adicionar áudios
         audioData.cp_audio.forEach((audio, index) => {
-          console.log(`Adicionando áudio ${index + 1}:`, audio.name, audio.type);
+          console.log(
+            `Adicionando áudio ${index + 1}:`,
+            audio.name,
+            audio.type,
+          );
           cursoFormData.append("audios", audio);
         });
 
-        console.log("Criando curso com áudios...");
-        console.log("FormData para curso:", {
-          nome: audioData.cp_curso_id,
-          youtube: audioData.cp_youtube_link_curso,
-          pdfs: audioData.cp_pdfs.length,
-          audios: audioData.cp_audio.length
-        });
-        console.log("Valor do cp_curso_id:", audioData.cp_curso_id);
-        console.log("Tipo do cp_curso_id:", typeof audioData.cp_curso_id);
+        
 
-        const response = await axios.post(`${API_BASE_URL}/cursos`, cursoFormData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        const response = await axios.post(
+          `${API_BASE_URL}/cursos`,
+          cursoFormData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          },
+        );
 
         const cursoId = response.data.cursoId;
         console.log("Curso criado com ID:", cursoId);
 
-        toast.success(`Curso e ${audioData.cp_audio.length} áudio(s) cadastrados com sucesso!`);
+        toast.success(
+          `Curso e ${audioData.cp_audio.length} áudio(s) cadastrados com sucesso!`,
+        );
         setAudioData(estadoInicial);
       }
     } catch (error) {
@@ -321,13 +393,14 @@ const CadastroAudio = ({ audioID }) => {
 
       if (!audioID && error.response?.data?.cursoId) {
         console.log("Removendo curso criado por erro...");
-        await axios.delete(`${API_BASE_URL}/cursos/${error.response.data.cursoId}`);
+        await axios.delete(
+          `${API_BASE_URL}/cursos/${error.response.data.cursoId}`,
+        );
       }
     } finally {
       setIsLoading(false);
     }
   };
-
 
   const handleConfirmSubmit = (e) => {
     e.preventDefault();
@@ -338,18 +411,20 @@ const CadastroAudio = ({ audioID }) => {
   return (
     <div>
       {isLoading && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          zIndex: 9999,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center"
-        }}>
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <div className="spinner-border text-light" role="status"></div>
         </div>
       )}
@@ -368,7 +443,6 @@ const CadastroAudio = ({ audioID }) => {
                   name="cp_curso_id"
                   value={audioData.cp_curso_id} // Esse value determina a seleção
                   onChange={handleChange}
-
                   required
                 >
                   <option value="">Selecione o curso</option>
@@ -409,13 +483,19 @@ const CadastroAudio = ({ audioID }) => {
                             type="button"
                             className="remove-file position-absolute top-0 end-0 z-1 text-2xxl line-height-1 me-8 mt-8 d-flex"
                             onClick={() =>
-                              setAudioData((prev) => ({ ...prev, cp_audio: [] }))
+                              setAudioData((prev) => ({
+                                ...prev,
+                                cp_audio: [],
+                              }))
                             }
                           >
                             ×
                           </button>
                           <div className="w-100 h-100 d-flex align-items-center justify-content-center">
-                            <span style={{ fontSize: "40px" }} className="text-primary text-4xl">
+                            <span
+                              style={{ fontSize: "40px" }}
+                              className="text-primary text-4xl"
+                            >
                               🎵
                             </span>
                           </div>
@@ -444,7 +524,9 @@ const CadastroAudio = ({ audioID }) => {
                           className="upload-file-multiple h-120-px w-120-px border input-form-light radius-8 overflow-hidden border-dashed bg-light d-flex align-items-center flex-column justify-content-center gap-1"
                           htmlFor="upload-audio"
                         >
-                          <span className="text-secondary-light text-3xl">+</span>
+                          <span className="text-secondary-light text-3xl">
+                            +
+                          </span>
                           <span className="fw-semibold text-secondary-light">
                             Áudio
                           </span>
@@ -472,7 +554,10 @@ const CadastroAudio = ({ audioID }) => {
                             ×
                           </button>
                           <div className="w-100 h-100 d-flex align-items-center justify-content-center">
-                            <span style={{ fontSize: "40px" }} className="text-dark text-5xl">
+                            <span
+                              style={{ fontSize: "40px" }}
+                              className="text-dark text-5xl"
+                            >
                               📄
                             </span>
                           </div>
@@ -483,7 +568,9 @@ const CadastroAudio = ({ audioID }) => {
                           className="upload-file-multiple h-120-px w-120-px border input-form-light radius-8 overflow-hidden border-dashed bg-light d-flex align-items-center flex-column justify-content-center gap-1"
                           htmlFor="upload-pdfs"
                         >
-                          <span className="text-secondary-light text-3xl">+</span>
+                          <span className="text-secondary-light text-3xl">
+                            +
+                          </span>
                           <span className="fw-semibold text-secondary-light">
                             PDFs
                           </span>
@@ -506,22 +593,34 @@ const CadastroAudio = ({ audioID }) => {
           </Col>
         </Row>
         <div className="mt-4 text-center">
-          <Button type="button" variant="primary" onClick={() => setShowConfirmModal(true)}>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => setShowConfirmModal(true)}
+          >
             {audioID ? "Salvar Alterações" : "Cadastrar Áudio"}
           </Button>
         </div>
       </form>
-      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
+      <Modal
+        show={showConfirmModal}
+        onHide={() => setShowConfirmModal(false)}
+        centered
+      >
         <Modal.Header closeButton>
           <Modal.Title>Confirmar Cadastro</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <p>
-            Tem certeza de que deseja {audioID ? "salvar as alterações" : "cadastrar este áudio"}?
+            Tem certeza de que deseja{" "}
+            {audioID ? "salvar as alterações" : "cadastrar este áudio"}?
           </p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowConfirmModal(false)}
+          >
             Cancelar
           </Button>
           <Button variant="primary" onClick={(e) => handleConfirmSubmit(e)}>
