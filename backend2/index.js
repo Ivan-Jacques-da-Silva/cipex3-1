@@ -1742,9 +1742,9 @@ app.put("/escolas/:id", authenticateToken, (req, res) => {
 // Editar curso
 app.put("/cursos/:id", authenticateToken, (req, res) => {
   const { id } = req.params;
-  const { cp_nome, cp_descricao, cp_preco, cp_duracao_meses } = req.body;
+  const { cp_nome_curso, cp_descricao, cp_preco, cp_duracao_meses } = req.body;
 
-  if (!cp_nome) {
+  if (!cp_nome_curso) {
     return res.status(400).json({ error: "Nome do curso é obrigatório" });
   }
 
@@ -1754,7 +1754,7 @@ app.put("/cursos/:id", authenticateToken, (req, res) => {
     WHERE cp_curso_id = $2 RETURNING *
   `;
 
-  const values = [cp_nome, id];
+  const values = [cp_nome_curso, id];
 
   db.query(query, values, (err, result) => {
     if (err) {
@@ -2091,35 +2091,47 @@ app.delete("/matriculas/:id", authenticateToken, (req, res) => {
 const cursoCompleto = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
+      console.log("=== MULTER DESTINATION ===");
+      console.log("Field name:", file.fieldname);
+      console.log("Original name:", file.originalname);
+      
       if (file.fieldname === "audios") {
-        cb(null, "AudiosCurso");
+        cb(null, path.join(__dirname, "AudiosCurso"));
+      } else if (file.fieldname.startsWith("pdf")) {
+        cb(null, path.join(__dirname, "MaterialCurso"));
       } else {
-        cb(null, "MaterialCurso");
+        cb(null, path.join(__dirname, "MaterialCurso"));
       }
     },
     filename: (req, file, cb) => {
-      cb(null, Date.now() + path.extname(file.originalname));
+      const timestamp = Date.now();
+      const ext = path.extname(file.originalname);
+      const filename = timestamp + ext;
+      console.log("=== MULTER FILENAME ===");
+      console.log("Original:", file.originalname);
+      console.log("Generated:", filename);
+      cb(null, filename);
     },
   }),
   fileFilter: (req, file, cb) => {
-    console.log("Arquivo recebido pelo multer:", {
-      fieldname: file.fieldname,
-      originalname: file.originalname,
-      mimetype: file.mimetype
-    });
-    // Aceitar todos os tipos de arquivo
+    console.log("=== MULTER FILE FILTER ===");
+    console.log("Field:", file.fieldname);
+    console.log("File:", file.originalname);
+    console.log("MIME:", file.mimetype);
+    
+    // Aceitar todos os tipos de arquivo por enquanto
     cb(null, true);
   },
   limits: {
     fileSize: 100 * 1024 * 1024, // 100MB por arquivo
     files: 105, // máximo de arquivos
     fieldSize: 10 * 1024 * 1024, // 10MB para campos de texto
-    fieldNameSize: 500, // aumentar limite do nome do campo
-    fields: 50 // aumentar número de campos não-arquivo
+    fieldNameSize: 500,
+    fields: 50
   }
 });
 
-// Rota para cadastrar curso com áudios e PDFs em uma transação
+// Rota para cadastrar curso com áudios e PDFs
 app.post(
   "/cursos",
   cursoCompleto.fields([
@@ -2129,82 +2141,65 @@ app.post(
     { name: "audios", maxCount: 100 },
   ]),
   async (req, res) => {
-    console.log("=== POST /cursos ===");
-    console.log("Body recebido:", req.body);
-    console.log("Files recebidos:", req.files);
-    console.log("Form data keys:", Object.keys(req.body || {}));
+    console.log("=== POST /cursos INICIADO ===");
+    console.log("Body recebido:", JSON.stringify(req.body, null, 2));
+    console.log("Files recebidos:", req.files ? Object.keys(req.files) : "Nenhum arquivo");
+    console.log("Headers:", req.headers['content-type']);
     
-    // Debug: mostrar todos os campos do body
-    for (const [key, value] of Object.entries(req.body || {})) {
-      console.log(`Campo ${key}:`, value, `(tipo: ${typeof value})`);
-    }
-    
-    // Processar nome do curso - aceitar cp_nome_curso ou cp_curso_id do frontend
-    let nomeCurso = req.body.cp_nome_curso || req.body.cp_curso_id;
-    
-    console.log("=== BACKEND LOG ===");
-    console.log("Backend, valor do campo cp_nome_curso:", nomeCurso);
-    
-    // Se não encontrou, tentar outras variações possíveis
-    if (!nomeCurso) {
-      console.log("Tentando encontrar nome do curso em outros campos...");
-      for (const [key, value] of Object.entries(req.body || {})) {
-        if (key.toLowerCase().includes('curso') || key.toLowerCase().includes('nome')) {
-          console.log(`Possível campo de curso encontrado: ${key} = ${value}`);
-          if (value && typeof value === 'string' && value.trim() !== '') {
-            nomeCurso = value;
-            break;
-          }
-        }
-      }
-    }
-    
-    // Verificar se é uma string válida e limpar
-    if (typeof nomeCurso === 'string') {
-      nomeCurso = nomeCurso.trim();
-    }
-
-    const { cp_youtube_link_curso } = req.body;
-
-    console.log("Nome do curso processado:", nomeCurso);
-    console.log("Tipo do nome do curso:", typeof nomeCurso);
-    console.log("Nome vazio?", !nomeCurso || nomeCurso === "");
-
-    // Validação obrigatória mais rigorosa
-    if (!nomeCurso || nomeCurso === "" || typeof nomeCurso !== 'string') {
-      console.log("❌ ERRO: Nome do curso inválido");
-      console.log("Dados recebidos no body:", JSON.stringify(req.body, null, 2));
-      return res.status(400).json({ 
-        error: "Nome do curso é obrigatório e deve ser uma string válida",
-        receivedData: {
-          body: req.body,
-          bodyKeys: Object.keys(req.body || {}),
-          nomeCurso: nomeCurso,
-          nomeCursoType: typeof nomeCurso
-        }
-      });
-    }
-
-    const pdf1 = req.files?.pdf1 ? req.files.pdf1[0].filename : null;
-    const pdf2 = req.files?.pdf2 ? req.files.pdf2[0].filename : null;
-    const pdf3 = req.files?.pdf3 ? req.files.pdf3[0].filename : null;
-
-    console.log("PDFs processados:", { pdf1, pdf2, pdf3 });
-
-    // Iniciar transação
-    const client = await db.connect();
-    let cursoId = null;
-
     try {
-      await client.query("BEGIN");
+      // Extrair e validar nome do curso
+      let cp_nome_curso = req.body.cp_nome_curso;
+      let cp_youtube_link_curso = req.body.cp_youtube_link_curso;
+      
+      // Verificar se veio como array e extrair
+      if (Array.isArray(cp_nome_curso)) {
+        cp_nome_curso = cp_nome_curso[0];
+      }
+      if (Array.isArray(cp_youtube_link_curso)) {
+        cp_youtube_link_curso = cp_youtube_link_curso[0];
+      }
+      
+      console.log("=== VALIDAÇÃO ===");
+      console.log("Nome do curso:", cp_nome_curso);
+      console.log("Tipo do nome:", typeof cp_nome_curso);
+      console.log("YouTube link:", cp_youtube_link_curso);
 
-      // 1. PRIMEIRO: Inserir curso na tabela cp_curso
-      console.log("=== PASSO 1: Inserindo curso ===");
+      // Validação obrigatória
+      if (!cp_nome_curso || typeof cp_nome_curso !== 'string' || cp_nome_curso.trim() === '') {
+        console.log("❌ ERRO: Nome do curso inválido");
+        return res.status(400).json({ 
+          error: "Nome do curso é obrigatório e deve ser uma string válida",
+          receivedData: {
+            cp_nome_curso: cp_nome_curso,
+            type: typeof cp_nome_curso,
+            bodyKeys: Object.keys(req.body),
+            hasFiles: !!req.files
+          }
+        });
+      }
+
+      const nomeCurso = cp_nome_curso.trim();
+
+      // Processar arquivos PDFs
+      const pdf1 = req.files?.pdf1?.[0]?.filename || null;
+      const pdf2 = req.files?.pdf2?.[0]?.filename || null;
+      const pdf3 = req.files?.pdf3?.[0]?.filename || null;
+      const audios = req.files?.audios || [];
+
+      console.log("=== ARQUIVOS PROCESSADOS ===");
+      console.log("PDF1:", pdf1);
+      console.log("PDF2:", pdf2);
+      console.log("PDF3:", pdf3);
+      console.log("Número de áudios:", audios.length);
+
+      // Usar conexão direta com o pool (não usar transação manual por enquanto)
+      console.log("=== INSERINDO CURSO ===");
       
       const cursoQuery = `
         INSERT INTO cp_curso (cp_nome_curso, cp_youtube_link_curso, cp_pdf1_curso, cp_pdf2_curso, cp_pdf3_curso)
         VALUES ($1, $2, $3, $4, $5) RETURNING cp_curso_id
       `;
+      
       const cursoValues = [
         nomeCurso,
         cp_youtube_link_curso || null,
@@ -2213,36 +2208,41 @@ app.post(
         pdf3,
       ];
 
-      console.log("Query do curso:", cursoQuery);
-      console.log("Valores do curso:", cursoValues);
+      console.log("Query:", cursoQuery);
+      console.log("Values:", cursoValues);
       
-      const cursoResult = await client.query(cursoQuery, cursoValues);
-      cursoId = cursoResult.rows[0].cp_curso_id;
-
-      console.log("✅ Curso inserido com sucesso! ID:", cursoId);
-
-      // 2. SEGUNDO: Processar e inserir áudios vinculados ao curso
-      const audios = req.files?.audios || [];
-      
-      if (audios.length > 0) {
-        console.log(`=== PASSO 2: Inserindo ${audios.length} áudios ===`);
-
-        // Validar formato de áudio
-        const invalidFiles = audios.filter((audio) => {
-          const isValidMimeType = audio.mimetype.includes("audio") || audio.mimetype.includes("mpeg");
-          const isValidExtension = audio.originalname.toLowerCase().endsWith(".mp3");
-          return !isValidMimeType && !isValidExtension;
+      const cursoResult = await new Promise((resolve, reject) => {
+        db.query(cursoQuery, cursoValues, (err, result) => {
+          if (err) {
+            console.error("Erro ao inserir curso:", err);
+            reject(err);
+          } else {
+            console.log("Curso inserido com sucesso:", result.rows[0]);
+            resolve(result);
+          }
         });
+      });
 
-        if (invalidFiles.length > 0) {
-          throw new Error(
-            `Apenas arquivos de áudio .mp3 são permitidos: ${invalidFiles.map((f) => f.originalname).join(", ")}`,
-          );
-        }
+      const cursoId = cursoResult.rows[0].cp_curso_id;
+      console.log("✅ Curso criado com ID:", cursoId);
 
-        // Inserir cada áudio vinculado ao curso
+      // Inserir áudios se houver
+      let audiosInseridos = 0;
+      if (audios.length > 0) {
+        console.log("=== INSERINDO ÁUDIOS ===");
+        
         for (let i = 0; i < audios.length; i++) {
           const audio = audios[i];
+          
+          // Validar tipo de arquivo
+          const isValidAudio = audio.mimetype.includes("audio") || 
+                              audio.mimetype.includes("mpeg") ||
+                              audio.originalname.toLowerCase().endsWith(".mp3");
+          
+          if (!isValidAudio) {
+            console.log(`⚠️ Arquivo inválido ignorado: ${audio.originalname}`);
+            continue;
+          }
           
           const audioQuery = `
             INSERT INTO cp_audio (cp_nome_audio, cp_arquivo_audio, cp_curso_id)
@@ -2252,47 +2252,53 @@ app.post(
           const nomeAudio = audio.originalname.replace(/\.mp3$/i, "");
           const audioValues = [nomeAudio, audio.filename, cursoId];
           
-          console.log(`Inserindo áudio ${i + 1}/${audios.length}:`, {
+          console.log(`Inserindo áudio ${i + 1}:`, {
             nome: nomeAudio,
             arquivo: audio.filename,
             cursoId: cursoId
           });
           
-          await client.query(audioQuery, audioValues);
-          console.log(`✅ Áudio ${i + 1} inserido com sucesso`);
+          await new Promise((resolve, reject) => {
+            db.query(audioQuery, audioValues, (err, result) => {
+              if (err) {
+                console.error(`Erro ao inserir áudio ${i + 1}:`, err);
+                reject(err);
+              } else {
+                audiosInseridos++;
+                console.log(`✅ Áudio ${i + 1} inserido`);
+                resolve(result);
+              }
+            });
+          });
         }
-        
-        console.log(`✅ Todos os ${audios.length} áudios inseridos com sucesso`);
-      } else {
-        console.log("=== PASSO 2: Nenhum áudio para inserir ===");
       }
 
-      // 3. TERCEIRO: Confirmar transação
-      await client.query("COMMIT");
-      console.log("✅ Transação confirmada com sucesso!");
+      console.log("=== CADASTRO FINALIZADO ===");
+      console.log("Curso ID:", cursoId);
+      console.log("Áudios inseridos:", audiosInseridos);
 
       res.status(201).json({
         success: true,
-        message: "Curso e áudios cadastrados com sucesso",
-        cursoId: cursoId,
-        audiosCount: audios.length,
+        message: "Curso cadastrado com sucesso",
+        data: {
+          cursoId: cursoId,
+          nomeCurso: nomeCurso,
+          audiosCount: audiosInseridos,
+          pdfsCount: [pdf1, pdf2, pdf3].filter(Boolean).length
+        }
       });
       
     } catch (error) {
-      // Reverter transação em caso de erro
-      await client.query("ROLLBACK");
-      console.error("❌ Erro na transação:", error);
-      console.error("❌ Stack trace:", error.stack);
-
+      console.error("❌ ERRO GERAL:", error);
+      console.error("Stack trace:", error.stack);
+      
       res.status(500).json({
-        error: "Erro ao cadastrar curso e áudios",
+        error: "Erro interno do servidor ao cadastrar curso",
         details: error.message,
-        cursoId: cursoId,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
-    } finally {
-      client.release();
     }
-  },
+  }
 );
 
 // Rota para cadastrar áudios de um curso existente
@@ -2448,7 +2454,7 @@ app.put(
     `;
 
       const values = [
-        nomeCurso,
+        cp_nome_curso,
         cp_youtube_link_curso || null,
         pdf1,
         pdf2,
