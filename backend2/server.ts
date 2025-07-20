@@ -44,6 +44,10 @@ app.use(
   "/MaterialExtra",
   express.static(path.join(__dirname, "MaterialExtra")),
 );
+app.use(
+  "/FotoPerfil",
+  express.static(path.join(__dirname, "FotoPerfil")),
+);
 
 // Rota de teste
 app.get("/test", (req, res) => {
