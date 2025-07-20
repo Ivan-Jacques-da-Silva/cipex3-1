@@ -1,18 +1,29 @@
-
 import { Router, Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
+import { Pool } from 'pg';
 import jwt from 'jsonwebtoken';
-import db from '../config/database';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import bcrypt from 'bcryptjs';
+import { authenticateToken, hashPassword } from '../middleware/auth';
 
 const router = Router();
+
+// Configuração do banco de dados PostgreSQL
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: false,
+});
+
+// JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || "sua_chave_secreta_super_segura_aqui";
 
-// Função para hash de senha
-const hashPassword = async (password: string): Promise<string> => {
-  const saltRounds = 10;
-  return await bcrypt.hash(password, saltRounds);
-};
+// Rota de teste
+router.get("/test", (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: "Backend2 TypeScript está funcionando!",
+    timestamp: new Date().toISOString(),
+    port: process.env.PORT || 3001,
+  });
+});
 
 // Rota de login
 router.post("/login", (req: Request, res: Response) => {
@@ -32,22 +43,18 @@ router.post("/login", (req: Request, res: Response) => {
   }
 
   // Buscar usuário no banco de dados - primeiro vamos listar todos os usuários para debug
-  const debugQuery =
-    "SELECT cp_id, cp_login, cp_nome FROM cp_usuarios WHERE cp_excluido = 0";
+  const debugQuery = "SELECT cp_id, cp_login, cp_nome FROM cp_usuarios WHERE cp_excluido = 0";
 
   db.query(debugQuery, [], (debugErr, debugResults) => {
     if (!debugErr) {
       console.log("=== USUÁRIOS DISPONÍVEIS NO BANCO ===");
       debugResults.rows.forEach((user) => {
-        console.log(
-          `ID: ${user.cp_id}, Login: "${user.cp_login}", Nome: "${user.cp_nome}"`,
-        );
+        console.log(`ID: ${user.cp_id}, Login: "${user.cp_login}", Nome: "${user.cp_nome}"`);
       });
     }
 
     // Agora fazer a busca real
-    const query =
-      "SELECT * FROM cp_usuarios WHERE cp_login = $1 AND cp_excluido = 0";
+    const query = "SELECT * FROM cp_usuarios WHERE cp_login = $1 AND cp_excluido = 0";
 
     console.log("Executando query:", query);
     console.log("Parâmetro:", login);
@@ -67,18 +74,12 @@ router.post("/login", (req: Request, res: Response) => {
         console.log("Usuário não encontrado:", login);
 
         // Vamos tentar busca case-insensitive
-        const caseInsensitiveQuery =
-          "SELECT * FROM cp_usuarios WHERE LOWER(cp_login) = LOWER($1) AND cp_excluido = 0";
+        const caseInsensitiveQuery = "SELECT * FROM cp_usuarios WHERE LOWER(cp_login) = LOWER($1) AND cp_excluido = 0";
         db.query(caseInsensitiveQuery, [login], (err2, results2) => {
           if (!err2 && results2.rows.length > 0) {
-            console.log(
-              "Usuário encontrado com busca case-insensitive:",
-              results2.rows[0].cp_login,
-            );
+            console.log("Usuário encontrado com busca case-insensitive:", results2.rows[0].cp_login);
           } else {
-            console.log(
-              "Usuário não encontrado mesmo com busca case-insensitive",
-            );
+            console.log("Usuário não encontrado mesmo com busca case-insensitive");
           }
         });
 
@@ -176,7 +177,7 @@ router.post("/login", (req: Request, res: Response) => {
 });
 
 // Rota para verificar token
-router.get("/verify-token", authenticateToken, (req: AuthRequest, res: Response) => {
+router.get("/verify-token", authenticateToken, (req: Request, res: Response) => {
   res.json({
     success: true,
     user: req.user,
@@ -184,11 +185,10 @@ router.get("/verify-token", authenticateToken, (req: AuthRequest, res: Response)
 });
 
 // Rota para buscar dados do usuário logado
-router.get("/me", authenticateToken, (req: AuthRequest, res: Response) => {
-  const query =
-    "SELECT * FROM cp_usuarios WHERE cp_id = $1 AND cp_excluido = 0";
+router.get("/me", authenticateToken, (req: Request, res: Response) => {
+  const query = "SELECT * FROM cp_usuarios WHERE cp_id = $1 AND cp_excluido = 0";
 
-  db.query(query, [req.user!.id], (err, results) => {
+  db.query(query, [req.user.id], (err, results) => {
     if (err) {
       console.error("Erro ao buscar dados do usuário:", err);
       return res.status(500).json({ error: "Erro ao buscar dados do usuário" });

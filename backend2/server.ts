@@ -58,25 +58,24 @@ app.get("/test", (req, res) => {
 // Importar e usar as rotas organizadas
 import authRoutes from './src/routes/authRoutes';
 import usuarioRoutes from './src/routes/usuarioRoutes';
+import escolaRoutes from './src/routes/escolaRoutes';
+import turmaRoutes from './src/routes/turmaRoutes';
+import cursoRoutes from './src/routes/cursoRoutes';
+import audioRoutes from './src/routes/audioRoutes';
+import materialRoutes from './src/routes/materialRoutes';
+import matriculaRoutes from './src/routes/matriculaRoutes';
+import professorRoutes from './src/routes/professorRoutes';
 
 // Usar as rotas
-app.use('/auth', authRoutes);
-app.use('/usuarios', usuarioRoutes);
-
-// Rotas que ainda serão criadas (comentadas por enquanto)
-// import escolaRoutes from './src/routes/escolaRoutes';
-// import turmaRoutes from './src/routes/turmaRoutes';
-// import cursoRoutes from './src/routes/cursoRoutes';
-// import audioRoutes from './src/routes/audioRoutes';
-// import materialRoutes from './src/routes/materialRoutes';
-// import matriculaRoutes from './src/routes/matriculaRoutes';
-
-// app.use('/escolas', escolaRoutes);
-// app.use('/turmas', turmaRoutes);
-// app.use('/cursos', cursoRoutes);
-// app.use('/audios', audioRoutes);
-// app.use('/materiais', materialRoutes);
-// app.use('/matriculas', matriculaRoutes);
+app.use('/', authRoutes);
+app.use('/', usuarioRoutes);
+app.use('/', escolaRoutes);
+app.use('/', turmaRoutes);
+app.use('/', cursoRoutes);
+app.use('/', audioRoutes);
+app.use('/', materialRoutes);
+app.use('/', matriculaRoutes);
+app.use('/', professorRoutes);
 
 // Iniciar servidor
 app.listen(PORT, "0.0.0.0", () => {
