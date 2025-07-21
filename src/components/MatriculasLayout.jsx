@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { Link } from "react-router-dom";
-// import CadastroMatriculaModal from "./CadastroMatriculaModalTeste";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios"; // Import axios
 import { API_BASE_URL } from "./config";
+import DeleteModal from "./components/DeleteModal"; // Certifique-se de que o caminho está correto
 
 const Usuarios = () => {
     const [matriculas, setMatriculas] = useState([]);
@@ -15,6 +15,9 @@ const Usuarios = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [sortDirection, setSortDirection] = useState("asc");
     const [loading, setLoading] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [matriculaToDelete, setMatriculaToDelete] = useState(null);
+    const navigate = useNavigate();
     const [statusFilter, setStatusFilter] = useState("");
 
     useEffect(() => {
@@ -44,14 +47,14 @@ const Usuarios = () => {
 
             // Filtrar por escola para usuários que não são super admin
             if (userType !== 1 && schoolId) {
-                matriculasFiltradas = matriculasArray.filter(matricula => 
+                matriculasFiltradas = matriculasArray.filter(matricula =>
                     matricula.cp_mt_escola_id == schoolId
                 );
             }
 
             // Se for aluno (userType 5), mostrar apenas suas próprias matrículas
             if (userType === 5) {
-                matriculasFiltradas = matriculasFiltradas.filter(matricula => 
+                matriculasFiltradas = matriculasFiltradas.filter(matricula =>
                     matricula.cp_mt_usuario_id === userId
                 );
             }
@@ -65,20 +68,44 @@ const Usuarios = () => {
         }
     };
 
-    const handleDelete = async (matriculaId) => {
+    const handleDelete = (matricula) => {
+        setMatriculaToDelete(matricula);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDelete = async () => {
         try {
-            const token = localStorage.getItem('token');
-            await fetch(`${API_BASE_URL}/matriculas/${matriculaId}`, {
-                method: "DELETE",
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                console.error("Token não encontrado");
+                navigate('/');
+                return;
+            }
+
+            await axios.delete(`${API_BASE_URL}/matriculas/${matriculaToDelete.cp_mt_id}`, { // Use cp_mt_id here
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                    'Authorization': `Bearer ${token}`
+                }
             });
-            fetchMatriculas();
+
+            fetchMatriculas(); // Recarregar lista
+            setShowDeleteModal(false);
+            setMatriculaToDelete(null);
         } catch (error) {
-            console.error("Erro ao excluir matrícula:", error);
+            console.error('Erro ao excluir matrícula:', error);
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+                navigate('/');
+            }
         }
     };
+
+    const closeModal = () => {
+        setShowDeleteModal(false);
+        setMatriculaToDelete(null);
+    };
+
 
     const openEditModal = (matriculaId) => {
         const matricula = matriculas.find((m) => m.cp_mt_id === matriculaId);
@@ -86,7 +113,7 @@ const Usuarios = () => {
         setShowModal(true);
     };
 
-    const closeModal = () => {
+    const closeModalEdit = () => {
         setShowModal(false);
         fetchMatriculas();
     };
@@ -208,13 +235,13 @@ const Usuarios = () => {
                                                 <Icon icon="lucide:edit" />
                                             </Link>
 
-                                            <button
-                                                onClick={() => handleDelete(matricula.cp_mt_id)}
-                                                className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center border-0"
-                                                style={{ cursor: 'pointer' }}
+                                            <Link
+                                                to="#"
+                                                className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center"
+                                                onClick={() => handleDelete(matricula)}
                                             >
                                                 <Icon icon="mingcute:delete-2-line" />
-                                            </button>
+                                            </Link>
                                         </td>
                                     </tr>
                                 ))
@@ -321,6 +348,14 @@ const Usuarios = () => {
                 </div>
 
             </div>
+             {showDeleteModal && (
+                <DeleteModal
+                    isOpen={showDeleteModal}
+                    onClose={closeModal}
+                    onConfirm={confirmDelete}
+                    itemName="matrícula"
+                />
+            )}
             {showModal && <></>}
         </div>
     );

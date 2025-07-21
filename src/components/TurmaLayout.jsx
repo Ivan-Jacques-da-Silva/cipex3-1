@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { API_BASE_URL } from "./config";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Modal, Button, Card, Col, Row } from "react-bootstrap";
 import axios from "axios";
 
@@ -16,11 +16,14 @@ const Turmas = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [sortDirection, setSortDirection] = useState("asc");
     const [loading, setLoading] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [turmaToDelete, setTurmaToDelete] = useState(null);
     const [showViewModal, setShowViewModal] = useState(false);
     const [turmaData, setTurmaData] = useState(null);
     const [alunosFiltrados, setAlunosFiltrados] = useState([]);
     const [alunosTurma, setAlunosTurma] = useState([]);
     const [loadingAlunos, setLoadingAlunos] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchTurmas();
@@ -180,6 +183,39 @@ const Turmas = () => {
         setAlunosTurma([]);
     };
 
+    const handleDelete = (turma) => {
+        setTurmaToDelete(turma);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDelete = async () => {
+        try {
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                console.error("Token não encontrado");
+                navigate('/');
+                return;
+            }
+
+            await axios.delete(`${API_BASE_URL}/turmas/${turmaToDelete.cp_id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            fetchTurmas(); // Recarregar lista
+            setShowDeleteModal(false);
+            setTurmaToDelete(null);
+        } catch (error) {
+            console.error('Erro ao excluir turma:', error);
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+                navigate('/');
+            }
+        }
+    };
+
     return (
         <div className="card h-100 p-0 radius-12">
             {userType === 5 ? (
@@ -281,12 +317,13 @@ const Turmas = () => {
                                                             >
                                                                 <Icon icon="lucide:edit" />
                                                             </Link>
-                                                            <button
-                                                                onClick={() => openDeleteModal(turma)}
+                                                            <Link
+                                                                to="#"
                                                                 className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center"
+                                                                onClick={() => handleDelete(turma)}
                                                             >
                                                                 <Icon icon="mingcute:delete-2-line" />
-                                                            </button>
+                                                            </Link>
                                                         </>
                                                     )}
 
@@ -467,7 +504,47 @@ const Turmas = () => {
                     </Button>
                 </Modal.Footer>
             </Modal>
+             {/* Modal de confirmação de exclusão */}
+            {showDeleteModal && (
+                <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content radius-16 bg-base">
+                            <div className="modal-body p-24 text-center">
+                                <span className="mb-16 fs-1 line-height-1 text-danger">
+                                    <Icon icon="fluent:delete-24-regular" className="menu-icon" />
+                                </span>
+                                <h6 className="text-lg fw-semibold text-primary-light mb-8">
+                                    Confirmar Exclusão
+                                </h6>
+                                <p className="text-secondary-light mb-0">
+                                    Tem certeza que deseja excluir a turma <strong>{turmaToDelete?.cp_nome_turma}</strong>? Esta ação não pode ser desfeita.
+                                </p>
+                                <div className="d-flex align-items-center justify-content-center gap-3 mt-24">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-secondary border border-secondary-300 text-secondary-light text-md px-40 py-11 radius-8"
+                                        onClick={() => {
+                                            setShowDeleteModal(false);
+                                            setTurmaToDelete(null);
+                                        }}
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-danger text-md px-40 py-11 radius-8"
+                                        onClick={confirmDelete}
+                                    >
+                                        Excluir
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
+            {showModal && <></>}
         </div>
     );
 };

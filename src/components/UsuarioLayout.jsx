@@ -14,6 +14,8 @@ const Usuarios = () => {
     const [selectedUserType, setSelectedUserType] = useState("");
     const [showOnlyBirthdays, setShowOnlyBirthdays] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
     const navigate = useNavigate();
     useEffect(() => {
         fetchUsers();
@@ -56,33 +58,35 @@ const Usuarios = () => {
         }
     };
 
-    const handleDelete = async (userId) => {
-        if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
-            try {
-                const token = localStorage.getItem("token");
+    const handleDelete = (user) => {
+        setUserToDelete(user);
+        setShowDeleteModal(true);
+    };
 
-                if (!token) {
-                    console.error("Token não encontrado");
-                    navigate('/');
-                    return;
-                }
+    const confirmDelete = async () => {
+        try {
+            const token = localStorage.getItem("token");
 
-                await axios.delete(`${API_BASE_URL}/usuarios/${userId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                fetchUsers(); // Recarregar lista
-                alert('Usuário excluído com sucesso!');
-            } catch (error) {
-                console.error('Erro ao excluir usuário:', error);
-                if (error.response?.status === 401) {
-                    localStorage.removeItem("token");
-                    navigate('/');
-                } else {
-                    alert('Erro ao excluir usuário');
+            if (!token) {
+                console.error("Token não encontrado");
+                navigate('/');
+                return;
+            }
+
+            await axios.delete(`${API_BASE_URL}/usuarios/${userToDelete.cp_id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
                 }
+            });
+            
+            fetchUsers(); // Recarregar lista
+            setShowDeleteModal(false);
+            setUserToDelete(null);
+        } catch (error) {
+            console.error('Erro ao excluir usuário:', error);
+            if (error.response?.status === 401) {
+                localStorage.removeToken("token");
+                navigate('/');
             }
         }
     };
@@ -261,7 +265,7 @@ const Usuarios = () => {
                                             <Link
                                                 to="#"
                                                 className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center"
-                                                onClick={() => handleDelete(user.cp_id)}
+                                                onClick={() => handleDelete(user)}
                                             >
                                                 <Icon icon="mingcute:delete-2-line" />
                                             </Link>
@@ -344,6 +348,46 @@ const Usuarios = () => {
                     </select>
                 </div>
             </div>
+            {/* Modal de confirmação de exclusão */}
+            {showDeleteModal && (
+                <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content radius-16 bg-base">
+                            <div className="modal-body p-24 text-center">
+                                <span className="mb-16 fs-1 line-height-1 text-danger">
+                                    <Icon icon="fluent:delete-24-regular" className="menu-icon" />
+                                </span>
+                                <h6 className="text-lg fw-semibold text-primary-light mb-8">
+                                    Confirmar Exclusão
+                                </h6>
+                                <p className="text-secondary-light mb-0">
+                                    Tem certeza que deseja excluir o usuário <strong>{userToDelete?.cp_nome}</strong>? Esta ação não pode ser desfeita.
+                                </p>
+                                <div className="d-flex align-items-center justify-content-center gap-3 mt-24">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-secondary border border-secondary-300 text-secondary-light text-md px-40 py-11 radius-8"
+                                        onClick={() => {
+                                            setShowDeleteModal(false);
+                                            setUserToDelete(null);
+                                        }}
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-danger text-md px-40 py-11 radius-8"
+                                        onClick={confirmDelete}
+                                    >
+                                        Excluir
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showModal && <></>}
         </div>
     );

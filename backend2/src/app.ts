@@ -1,4 +1,3 @@
-
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -71,7 +70,7 @@ app.use('/usuarios', usuarioRoutes);
 app.use('/escolas', escolaRoutes);
 app.use('/turmas', turmaRoutes);
 app.use('/cursos', cursoRoutes);
-app.use('/audios', audioRoutes);
+app.use('/', audioRoutes);  // Remove o prefixo para permitir /audios-curso/:cursoId
 app.use('/materiais', materialRoutes);
 app.use('/matriculas', matriculaRoutes);
 

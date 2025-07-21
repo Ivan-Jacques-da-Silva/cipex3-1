@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "./config";
 import { Modal, Button } from "react-bootstrap";
+import axios from "axios";
 
 const Escolas = () => {
     const [escolas, setEscolas] = useState([]);
@@ -13,6 +14,9 @@ const Escolas = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [sortDirection, setSortDirection] = useState("asc");
     const [loading, setLoading] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [escolaToDelete, setEscolaToDelete] = useState(null);
+    const navigate = useNavigate();
     const [mostrarModalExclusao, setMostrarModalExclusao] = useState(false);
     const [idEscolaParaExcluir, setIdEscolaParaExcluir] = useState(null);
 
@@ -38,16 +42,16 @@ const Escolas = () => {
                 },
             });
             const data = await response.json();
-            
+
             // Garantir que data seja sempre um array
             const escolasArray = Array.isArray(data) ? data : [];
-            
+
             // Aplicar filtros baseados no tipo de usuário
             const userType = parseInt(localStorage.getItem('userType'), 10) || 0;
             const schoolId = localStorage.getItem("schoolId");
-            
+
             let escolasFiltradas = escolasArray;
-            
+
             // Para usuários que não são super admin (userType !== 1), 
             // mostrar apenas a escola a que pertencem
             if (userType !== 1 && schoolId) {
@@ -55,7 +59,7 @@ const Escolas = () => {
                     (escola.cp_id || escola.cp_ec_id) == schoolId
                 );
             }
-            
+
             setEscolas(escolasFiltradas);
         } catch (error) {
             console.error("Erro ao buscar escolas:", error);
@@ -94,9 +98,37 @@ const Escolas = () => {
             // Você pode adicionar um toast de erro aqui se desejar
         }
     };
+    const handleDelete = (escola) => {
+        setEscolaToDelete(escola);
+        setShowDeleteModal(true);
+    };
 
-    const handleDelete = async (escolaId) => {
-        abrirModalExclusao(escolaId);
+    const confirmDelete = async () => {
+        try {
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                console.error("Token não encontrado");
+                navigate('/');
+                return;
+            }
+
+            await axios.delete(`${API_BASE_URL}/escolas/${escolaToDelete.cp_id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            fetchEscolas(); // Recarregar lista
+            setShowDeleteModal(false);
+            setEscolaToDelete(null);
+        } catch (error) {
+            console.error('Erro ao excluir escola:', error);
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+                navigate('/');
+            }
+        }
     };
 
     const openEditModal = (escolaId) => {
@@ -236,13 +268,13 @@ const Escolas = () => {
                                                 <Icon icon="lucide:edit" />
                                             </Link>
 
-                                            <button
-                                                onClick={() => handleDelete(escola.cp_id || escola.cp_ec_id)}
-                                                className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center border-0"
-                                                style={{ cursor: 'pointer' }}
+                                            <Link
+                                                to="#"
+                                                className="w-32-px h-32-px me-8 bg-danger-focus text-danger-main rounded-circle d-inline-flex align-items-center justify-content-center"
+                                                onClick={() => handleDelete(escola)}
                                             >
                                                 <Icon icon="mingcute:delete-2-line" />
-                                            </button>
+                                            </Link>
 
                                         </td>
                                     </tr>
@@ -334,6 +366,46 @@ const Escolas = () => {
                 </div>
 
             </div>
+            {/* Modal de confirmação de exclusão */}
+            {showDeleteModal && (
+                <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content radius-16 bg-base">
+                            <div className="modal-body p-24 text-center">
+                                <span className="mb-16 fs-1 line-height-1 text-danger">
+                                    <Icon icon="fluent:delete-24-regular" className="menu-icon" />
+                                </span>
+                                <h6 className="text-lg fw-semibold text-primary-light mb-8">
+                                    Confirmar Exclusão
+                                </h6>
+                                <p className="text-secondary-light mb-0">
+                                    Tem certeza que deseja excluir a escola <strong>{escolaToDelete?.cp_nome}</strong>? Esta ação não pode ser desfeita.
+                                </p>
+                                <div className="d-flex align-items-center justify-content-center gap-3 mt-24">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-secondary border border-secondary-300 text-secondary-light text-md px-40 py-11 radius-8"
+                                        onClick={() => {
+                                            setShowDeleteModal(false);
+                                            setEscolaToDelete(null);
+                                        }}
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-danger text-md px-40 py-11 radius-8"
+                                        onClick={confirmDelete}
+                                    >
+                                        Excluir
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <Modal show={mostrarModalExclusao} onHide={() => setMostrarModalExclusao(false)} centered>
                 <Modal.Header closeButton>
                     <Modal.Title>Confirmar Exclusão</Modal.Title>

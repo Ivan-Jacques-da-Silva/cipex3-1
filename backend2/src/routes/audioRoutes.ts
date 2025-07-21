@@ -1,4 +1,3 @@
-
 import { Router, Request, Response } from 'express';
 import { Pool } from 'pg';
 import multer from 'multer';
@@ -29,7 +28,19 @@ const audioUpload = multer({ storage: audioStorage });
 router.get("/audios-curso/:cursoId", (req: Request, res: Response) => {
   const { cursoId } = req.params;
 
+  console.log("=== DEBUG BUSCAR ÁUDIOS ===");
+  console.log("Curso ID recebido:", cursoId);
+  console.log("Tipo do cursoId:", typeof cursoId);
+
+  if (!cursoId || cursoId === 'undefined') {
+    console.log("Curso ID inválido ou undefined");
+    return res.status(400).json({ error: "ID do curso é obrigatório" });
+  }
+
   const query = "SELECT * FROM cp_audio WHERE cp_curso_id = $1 ORDER BY cp_nome_audio";
+
+  console.log("Executando query:", query);
+  console.log("Parâmetros:", [cursoId]);
 
   db.query(query, [cursoId], (err, results) => {
     if (err) {
@@ -37,11 +48,47 @@ router.get("/audios-curso/:cursoId", (req: Request, res: Response) => {
       return res.status(500).json({ error: "Erro ao buscar áudios do curso" });
     }
 
+    console.log(`Encontrados ${results.rows.length} áudios para o curso ${cursoId}`);
+
     const audiosFormatados = results.rows.map((audio) => ({
       cp_audio_id: audio.cp_audio_id,
       cp_nome_audio: audio.cp_nome_audio,
       cp_arquivo_audio: audio.cp_arquivo_audio,
       cp_curso_id: audio.cp_curso_id,
+      arquivo: audio.cp_arquivo_audio,
+      url_audio: `${req.protocol}://${req.get("host")}/AudiosCurso/${audio.cp_arquivo_audio}`,
+    }));
+
+    console.log("Áudios formatados:", audiosFormatados);
+    res.json(audiosFormatados);
+  });
+});
+
+// Buscar todos os áudios (para admin - userType = 1)
+router.get("/audios", (req: Request, res: Response) => {
+  console.log("=== DEBUG BUSCAR TODOS OS ÁUDIOS ===");
+  
+  const query = `
+    SELECT a.*, c.cp_nome_curso 
+    FROM cp_audio a 
+    LEFT JOIN cp_curso c ON a.cp_curso_id = c.cp_curso_id 
+    ORDER BY c.cp_nome_curso, a.cp_nome_audio
+  `;
+
+  db.query(query, [], (err, results) => {
+    if (err) {
+      console.error("Erro ao buscar todos os áudios:", err);
+      return res.status(500).json({ error: "Erro ao buscar áudios" });
+    }
+
+    console.log(`Encontrados ${results.rows.length} áudios no total`);
+
+    const audiosFormatados = results.rows.map((audio) => ({
+      cp_audio_id: audio.cp_audio_id,
+      cp_nome_audio: audio.cp_nome_audio,
+      cp_arquivo_audio: audio.cp_arquivo_audio,
+      cp_curso_id: audio.cp_curso_id,
+      cp_nome_curso: audio.cp_nome_curso,
       arquivo: audio.cp_arquivo_audio,
       url_audio: `${req.protocol}://${req.get("host")}/AudiosCurso/${audio.cp_arquivo_audio}`,
     }));
@@ -148,7 +195,7 @@ router.put("/update-audio/:cursoId", audioUpload.array("audios"), (req: Request,
       !audio.mimetype.includes("audio") &&
       !audio.originalname.toLowerCase().endsWith(".mp3"),
   );
-  
+
   if (invalidFiles.length > 0) {
     return res.status(400).json({ error: "Apenas arquivos de áudio .mp3 são permitidos" });
   }
@@ -208,7 +255,7 @@ router.delete("/audio/:audioId", authenticateToken, (req: Request, res: Response
 // Buscar áudios marcados pelo usuário
 router.get("/audios-marcados/:userId", (req: Request, res: Response) => {
   const { userId } = req.params;
-  
+
   // Por enquanto retorna array vazio pois não temos tabela de visualizações
   res.json([]);
 });
@@ -219,6 +266,77 @@ router.post("/registrar-visualizacao", (req: Request, res: Response) => {
 
   // Por enquanto apenas retorna sucesso
   res.json({ message: "Visualização registrada com sucesso" });
+});
+
+// Servir arquivo de áudio estático
+router.get("/audio/:filename", (req: Request, res: Response) => {
+  const { filename } = req.params;
+  const audioPath = path.join(__dirname, "../../AudiosCurso", filename);
+
+  res.sendFile(audioPath, (err) => {
+    if (err) {
+      console.error("Erro ao servir áudio:", err);
+      res.status(404).json({ error: "Áudio não encontrado" });
+    }
+  });
+});
+
+// Rota para buscar turmas por professor (necessária para o frontend)
+router.get("/cp_turmas/professor/:professorId", (req: Request, res: Response) => {
+  const { professorId } = req.params;
+
+  const query = "SELECT * FROM cp_turmas WHERE cp_tr_professor_id = $1";
+
+  db.query(query, [professorId], (err, results) => {
+    if (err) {
+      console.error("Erro ao buscar turmas do professor:", err);
+      return res.status(500).json({ error: "Erro ao buscar turmas do professor" });
+    }
+
+    res.json(results.rows);
+  });
+});
+
+// Rota para buscar cursos em lote (batch) - necessária para o frontend
+router.get("/cursos/batch", (req: Request, res: Response) => {
+  const { cursoIds } = req.body;
+
+  if (!cursoIds || !Array.isArray(cursoIds)) {
+    return res.status(400).json({ error: "IDs dos cursos são obrigatórios" });
+  }
+
+  const placeholders = cursoIds.map((_, index) => `$${index + 1}`).join(',');
+  const query = `SELECT * FROM cp_curso WHERE cp_curso_id IN (${placeholders})`;
+
+  db.query(query, cursoIds, (err, results) => {
+    if (err) {
+      console.error("Erro ao buscar cursos em lote:", err);
+      return res.status(500).json({ error: "Erro ao buscar cursos" });
+    }
+
+    res.json(results.rows);
+  });
+});
+
+// Rota POST para buscar cursos em lote
+router.post("/cursos/batch", (req: Request, res: Response) => {
+  const { cursoIds } = req.body;
+
+  if (!cursoIds || !Array.isArray(cursoIds)) {
+    return res.status(400).json({ error: "IDs dos cursos são obrigatórios" });
+  }
+
+  const placeholders = cursoIds.map((_, index) => `$${index + 1}`).join(',');
+  const query = `SELECT * FROM cp_curso WHERE cp_curso_id IN (${placeholders})`;
+
+  db.query(query, cursoIds, (err, results) => {
+    if (err) {
+      console.error("Erro ao buscar cursos em lote:", err);
+      return res.status(500).json({ error: "Erro ao buscar cursos" });
+    }
+
+    res.json(results.rows);
+  });
 });
 
 export default router;

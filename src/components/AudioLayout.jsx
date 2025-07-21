@@ -29,6 +29,10 @@ const Audios = () => {
 
     useEffect(() => {
         fetchCursos();
+        // Se o usuário for admin (tipo 1), carrega todos os áudios automaticamente
+        if (tipoUser === "1") {
+            fetchTodosAudios();
+        }
     }, []);
 
     const deletarCurso = async () => {
@@ -110,17 +114,38 @@ const Audios = () => {
 
 
 
+    const fetchTodosAudios = async () => {
+        setLoading(true);
+        setPaginaAtual(1);
+        try {
+            const response = await fetch(`${API_BASE_URL}/audios`);
+            const data = await response.json();
+            console.log("Todos os áudios carregados:", data);
+            data.sort((a, b) => a.cp_nome_audio.localeCompare(b.cp_nome_audio, undefined, { numeric: true, sensitivity: 'base' }));
+            setAudios(data);
+            setSelectedCursoId(null); // Remove seleção de curso específico
+        } catch (error) {
+            console.error("Erro ao buscar todos os áudios:", error);
+            toast.error("Erro ao carregar áudios");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const fetchAudios = async (cursoId) => {
         setLoading(true);
         setPaginaAtual(1); // Sempre volta para a primeira página ao trocar de curso
         try {
+            console.log("Buscando áudios para curso:", cursoId);
             const response = await fetch(`${API_BASE_URL}/audios-curso/${cursoId}`);
             const data = await response.json();
+            console.log("Áudios do curso carregados:", data);
             data.sort((a, b) => a.cp_nome_audio.localeCompare(b.cp_nome_audio, undefined, { numeric: true, sensitivity: 'base' }));
             setAudios(data);
             setSelectedCursoId(cursoId);
         } catch (error) {
             console.error("Erro ao buscar áudios:", error);
+            toast.error("Erro ao carregar áudios do curso");
         } finally {
             setLoading(false);
         }
@@ -209,9 +234,12 @@ const Audios = () => {
                 </div>
             </div>
             <div className="row">
-                <div className="col-12 col-md-4 border-md-end mb-3 mb-md-0">
+                <div className="col-12 col-lg-4 border-lg-end mb-3 mb-lg-0">
                     <div className="card-body p-24">
-                        <ul className="align-items-center justify-content-center" sty>
+                        <div className="d-lg-none mb-3">
+                            <h6 className="text-primary">Selecione um curso:</h6>
+                        </div>
+                        <ul className="align-items-center justify-content-center">
                             {currentCursos.map((curso, index) => (
                                 <div
                                     key={curso.cp_curso_id}
@@ -342,9 +370,29 @@ const Audios = () => {
 
                     </div>
                 </div>
-                <div className="col-12 col-md-8">
+                <div className="col-12 col-lg-8">
                     <div className="card-body p-24">
-                        {(!selectedCursoId || audios.length === 0) && !loading ? (
+                        {tipoUser === "1" && (
+                            <div className="mb-3 d-flex flex-column flex-sm-row gap-2 align-items-start">
+                                <button 
+                                    className={`btn ${!selectedCursoId ? 'btn-primary' : 'btn-outline-primary'}`}
+                                    onClick={fetchTodosAudios}
+                                >
+                                    Ver Todos os Áudios
+                                </button>
+                                <span className="text-muted small">ou clique em "Ver Áudios" ao lado de um curso específico</span>
+                            </div>
+                        )}
+                        
+                        {selectedCursoId && (
+                            <div className="mb-3 d-lg-none">
+                                <h6 className="text-success mb-0">
+                                    Áudios do curso: {cursos.find(c => c.cp_curso_id === parseInt(selectedCursoId))?.cp_nome_curso}
+                                </h6>
+                            </div>
+                        )}
+                        
+                        {(!selectedCursoId && audios.length === 0) && !loading && tipoUser !== "1" ? (
                             <div className="fw-bold text-primary">Clique em "Ver Áudios"</div>
                         ) : (
                             <div className="table-responsive scroll-sm">
@@ -352,36 +400,46 @@ const Audios = () => {
                                 <table className="table bordered-table sm-table mb-0">
                                     <thead>
                                         <tr>
-                                            <th>Nome do Áudio</th>
-                                            <th className="text-center">Ação</th>
+                                            <th style={{ minWidth: '200px' }}>Nome do Áudio</th>
+                                            {tipoUser === "1" && !selectedCursoId && <th className="d-none d-md-table-cell" style={{ minWidth: '150px' }}>Curso</th>}
+                                            <th className="text-center" style={{ minWidth: '300px' }}>Player</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loading ? (
                                             <tr>
-                                                <td colSpan="2" className="text-center">
+                                                <td colSpan={tipoUser === "1" && !selectedCursoId ? "3" : "2"} className="text-center">
                                                     Carregando...
                                                 </td>
                                             </tr>
                                         ) : (
                                             filteredAudios.map((audio) => (
                                                 <tr key={audio.cp_audio_id}>
-                                                    <td style={{ maxWidth: '260px', wordWrap: 'break-word' }}>
-                                                        {audio.cp_nome_audio}
+                                                    <td style={{ wordWrap: 'break-word' }}>
+                                                        <div className="fw-semibold">{audio.cp_nome_audio}</div>
+                                                        {tipoUser === "1" && !selectedCursoId && (
+                                                            <div className="d-md-none">
+                                                                <small className="text-muted">
+                                                                    {audio.cp_nome_curso || 'Curso não encontrado'}
+                                                                </small>
+                                                            </div>
+                                                        )}
                                                     </td>
+                                                    {tipoUser === "1" && !selectedCursoId && (
+                                                        <td className="d-none d-md-table-cell" style={{ wordWrap: 'break-word' }}>
+                                                            {audio.cp_nome_curso || 'Curso não encontrado'}
+                                                        </td>
+                                                    )}
                                                     <td className="text-center">
-                                                        {/* <audio controls controlsList="nodownload">
-                                                            <source
-                                                                src={`${API_BASE_URL}/audios/${audio.cp_nome_audio}`}
-                                                                type="audio/mpeg"
-                                                            />
-                                                            Seu navegador não suporta o elemento <code>audio</code>.
-                                                        </audio> */}
-                                                        <audio controls preload="none" controlsList="nodownload">
+                                                        <audio 
+                                                            controls 
+                                                            preload="none" 
+                                                            controlsList="nodownload"
+                                                            style={{ width: '100%', maxWidth: '300px' }}
+                                                        >
                                                             <source src={`${API_BASE_URL}/audio/${audio.cp_nome_audio}`} type="audio/mpeg" />
                                                             Seu navegador não suporta o elemento <code>audio</code>.
                                                         </audio>
-
                                                     </td>
                                                 </tr>
                                             ))
@@ -390,7 +448,7 @@ const Audios = () => {
                                 </table>
                             </div>
                         )}
-                        <div className="d-flex flex-column flex-md-row align-items-center justify-content-between mt-24">
+                        <div className="d-flex flex-column flex-lg-row align-items-center justify-content-between mt-24 gap-3">
                             <span className="mb-3 mb-md-0">
                                 Mostrando {paginaAtual} de {totalPaginasAudiosCurso} páginas
                             </span>
