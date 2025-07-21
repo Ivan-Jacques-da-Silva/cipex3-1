@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "./config";
+import axios from "axios";
 
 const Usuarios = () => {
     const [users, setUsers] = useState([]);
@@ -21,31 +22,68 @@ const Usuarios = () => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/usuarios`);
-            const data = await response.json();
+            const token = localStorage.getItem("token");
+            
+            if (!token) {
+                console.error("Token não encontrado no localStorage");
+                navigate('/');
+                return;
+            }
 
-            // Garantir que data seja sempre um array
-            const usuariosArray = Array.isArray(data) ? data : [];
+            const response = await axios.get(`${API_BASE_URL}/usuarios`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
-            // Filtrar usuários baseado no tipo de usuário logado
-            let usuariosFiltrados = usuariosArray;
-        
-            setUsers(usuariosFiltrados);
+            if (response.data.success) {
+                // Garantir que usuarios seja sempre um array
+                const usuariosArray = Array.isArray(response.data.usuarios) ? response.data.usuarios : [];
+                setUsers(usuariosArray);
+            } else {
+                console.error("Erro na resposta:", response.data);
+                setUsers([]);
+            }
         } catch (error) {
             console.error("Erro ao buscar usuários:", error);
+            if (error.response?.status === 401) {
+                localStorage.removeItem("token");
+                navigate('/');
+            }
+            setUsers([]);
         } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = async (userId) => {
-        try {
-            await fetch(`${API_BASE_URL}/usuarios/${userId}`, {
-                method: "DELETE",
-            });
-            fetchUsers();
-        } catch (error) {
-            console.error("Erro ao excluir usuário:", error);
+        if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
+            try {
+                const token = localStorage.getItem("token");
+
+                if (!token) {
+                    console.error("Token não encontrado");
+                    navigate('/');
+                    return;
+                }
+
+                await axios.delete(`${API_BASE_URL}/usuarios/${userId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                fetchUsers(); // Recarregar lista
+                alert('Usuário excluído com sucesso!');
+            } catch (error) {
+                console.error('Erro ao excluir usuário:', error);
+                if (error.response?.status === 401) {
+                    localStorage.removeItem("token");
+                    navigate('/');
+                } else {
+                    alert('Erro ao excluir usuário');
+                }
+            }
         }
     };
 

@@ -13,7 +13,7 @@ const db = new Pool({
 });
 
 // JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || "sua_chave_secreta_super_segura_aqui";
+const JWT_SECRET = process.env.JWT_SECRET || "C1p3x_JWT_S3cr3t_K3y_2024!@#$%";
 
 // Rota de teste
 router.get("/test", (req: Request, res: Response) => {

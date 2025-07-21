@@ -30,6 +30,8 @@ const upload = multer({ storage: storage });
 // Rota para buscar todos os usuários
 router.get("/usuarios", authenticateToken, (req: Request, res: Response) => {
   console.log("=== DEBUG BUSCAR USUÁRIOS ===");
+  console.log("Usuário autenticado:", req.user);
+  console.log("Headers da requisição:", req.headers);
   
   const query = "SELECT * FROM cp_usuarios WHERE cp_excluido = 0 ORDER BY cp_id DESC";
   
@@ -95,10 +97,7 @@ router.get("/usuarios/:id", authenticateToken, (req: Request, res: Response) => 
 
     console.log("Usuário encontrado:", user.cp_nome);
     
-    res.json({
-      success: true,
-      usuario: user
-    });
+    res.json(user);
   });
 });
 
@@ -441,7 +440,7 @@ router.delete("/usuarios/:id", authenticateToken, (req: Request, res: Response) 
 });
 
 // Rota para buscar usuários por escola
-router.get("/usuarios-escola/:escolaId", authenticateToken, (req: Request, res: Response) => {
+router.get("/usuarios/escola/:escolaId", authenticateToken, (req: Request, res: Response) => {
   const escolaId = parseInt(req.params.escolaId);
   
   console.log("=== DEBUG BUSCAR USUÁRIOS POR ESCOLA ===");
@@ -481,7 +480,7 @@ router.get("/usuarios-escola/:escolaId", authenticateToken, (req: Request, res: 
 });
 
 // Rota para buscar usuários por turma
-router.get("/usuarios-turma/:turmaId", authenticateToken, (req: Request, res: Response) => {
+router.get("/usuarios/turma/:turmaId", authenticateToken, (req: Request, res: Response) => {
   const turmaId = parseInt(req.params.turmaId);
   
   console.log("=== DEBUG BUSCAR USUÁRIOS POR TURMA ===");

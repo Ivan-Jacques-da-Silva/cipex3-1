@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { API_BASE_URL } from "./config";
+import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Row, Col, Button, Form, Modal } from "react-bootstrap";
@@ -186,19 +186,31 @@ const CadastroAudio = ({ audioID }) => {
   const fetchCursos = async () => {
     try {
       const token = localStorage.getItem("token");
+
+      if (!token) {
+        console.error("Token não encontrado no localStorage");
+        return;
+      }
+
       const response = await axios.get(`${API_BASE_URL}/cursos`, {
         headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+          'Authorization': `Bearer ${token}`
+        }
       });
-      setCursos(response.data);
-    } catch (error) {
-      console.error("Erro ao buscar os cursos:", error);
-      if (error.response?.status === 401) {
-        toast.error("Sessão expirada. Faça login novamente.");
-        authService.logout();
+
+      if (response.data.success) {
+        setCursos(response.data.cursos || []);
+      } else {
+        console.error("Erro na resposta:", response.data);
+        setCursos([]);
       }
+    } catch (error) {
+      console.error("Erro ao buscar cursos:", error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem("token");
+        // Redirecionar para login se necessário
+      }
+      setCursos([]);
     }
   };
 
@@ -318,18 +330,18 @@ const CadastroAudio = ({ audioID }) => {
         }
 
         const cursoFormData = new FormData();
-        
+
         // Verificar se o nome do curso não está vazio
         const nomeCurso = audioData.cp_curso_id;
         if (!nomeCurso || nomeCurso.trim() === "") {
           toast.error("Por favor, selecione um curso válido");
           return;
         }
-        
+
         console.log("=== FRONTEND LOG ===");
         console.log("Frontend, valor sendo enviado cp_nome_curso:", nomeCurso);
         console.log("Frontend, audioData completo:", audioData);
-        
+
         cursoFormData.append("cp_nome_curso", nomeCurso);
         cursoFormData.append(
           "cp_youtube_link_curso",
@@ -359,7 +371,7 @@ const CadastroAudio = ({ audioID }) => {
           cursoFormData.append("audios", audio);
         });
 
-        
+
 
         const response = await axios.post(
           `${API_BASE_URL}/cursos`,
